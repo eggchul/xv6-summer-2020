@@ -5,6 +5,7 @@
 #include "spinlock.h"
 #include "proc.h"
 #include "defs.h"
+#include "resumable.h"
 
 struct cpu cpus[NCPU];
 
@@ -601,7 +602,7 @@ kill(int pid)
     acquire(&p->lock);
     if(p->pid == pid){
       p->killed = 1;
-      if(p->state == SLEEPING){
+      if(p->state == SLEEPING || p->state == SUSPENDED){
         // Wake process from sleep().
         p->state = RUNNABLE;
       }
@@ -654,7 +655,8 @@ procdump(void)
   [SLEEPING]  "sleep ",
   [RUNNABLE]  "runble",
   [RUNNING]   "run   ",
-  [ZOMBIE]    "zombie"
+  [ZOMBIE]    "zombie",
+  [SUSPENDED] "suspended"
   };
   struct proc *p;
   char *state;
@@ -671,3 +673,179 @@ procdump(void)
     printf("\n");
   }
 }
+
+int
+numprocs(void)
+{
+  struct proc *p;
+  int count = 0;
+
+  for(p = proc; p < &proc[NPROC]; p++){
+    if (p->state != UNUSED) {
+      count += 1;
+    }
+  }
+
+  return count;
+}
+
+// kernel turn tracing on, proc->tracing = 1
+int 
+ktraceon(void)
+{
+  myproc()->tracing = 1;
+  return 1;
+}
+
+//write running process information into where the pinfo pointer points to
+int 
+kpinfo(uint64 info_p)
+{
+  struct pinfo psinfo;
+  struct pdata *pd_array = psinfo.pdata_array;
+  int count = 0;
+  struct proc *p;
+  for(p = proc; p < &proc[NPROC]; p++) {
+    acquire(&p->lock);
+    if(p->state != UNUSED) {
+      pd_array[count].pid = p->pid;
+      strncpy(pd_array[count].name, p->name, 16);
+      pd_array[count].mem = p->sz;
+      count +=1;
+    }
+    psinfo.numproc = count;
+    release(&p->lock);
+  }
+  copyout(myproc()->pagetable, info_p, (void *) &psinfo, sizeof(struct pinfo));
+  return 0;
+}
+
+int 
+ksuspend(int pid, int fd, struct file *f)
+{
+  struct proc *p;
+  int found = 0;
+
+  for(p = proc; p < &proc[NPROC]; p++){
+    if(p->pid != pid){
+        continue;
+    }
+    found = 1;
+    
+    acquire(&p->lock);
+    p->state = SUSPENDED;
+    // p->chan = 0;
+    // p->state = SLEEPING;
+    release(&p->lock);
+
+    struct resumehdr hdr;
+    //assign value to hdr instances
+    hdr.mem_sz = p->sz;
+    hdr.code_sz = p->sz - 2 * PGSIZE;
+    hdr.stack_sz = PGSIZE;
+    hdr.tracing = p->tracing;
+    strncpy(hdr.name, p->name, 16);
+    // printf("mem: %d, code: %d, stack : %d, tracing: %d, name: %s\n", hdr.mem_sz, hdr.code_sz, hdr.stack_sz, hdr.tracing, hdr.name);
+    pagetable_t tmp = myproc()->pagetable;  
+    myproc()->pagetable = p->pagetable;
+    filewritefromkernel(f, (uint64) &hdr, sizeof(struct resumehdr));      // write header 32
+    filewritefromkernel(f, (uint64) p->tf, sizeof(struct trapframe));     // write trapframe 288 
+    filewrite(f, (uint64) 0, hdr.code_sz);                                // write code+data
+    filewrite(f, (uint64) (hdr.code_sz + PGSIZE), PGSIZE);                // write stack
+    myproc()->pagetable = tmp;
+  
+    return 1;
+  }
+  
+  if (found == 0) {
+    printf("invalid process id\n");
+    return 0;
+  }
+
+  return 0;
+}
+
+int 
+kresume(char *path)
+{
+  struct resumehdr hdr;
+  struct inode *ip;
+  pagetable_t pagetable = 0, oldpagetable;
+  struct proc *p = myproc();
+  uint64 oldsz = p->sz;
+  uint64 sz;
+
+  begin_op(ROOTDEV);
+
+  if((ip = namei(path)) == 0){
+    end_op(ROOTDEV);
+    return -1;
+  }
+
+  ilock(ip);
+
+  // Check header
+  if (readi(ip, 0, (uint64) &hdr, 0, sizeof(struct resumehdr)) != sizeof(struct resumehdr)) {
+      goto bad;
+  }
+  int pg_begin = sizeof(struct resumehdr);
+
+  //load trapframe
+  if (readi(ip, 0, (uint64) p->tf, pg_begin, sizeof(struct trapframe)) < sizeof(struct trapframe)) {
+      goto bad;
+  }
+  pg_begin += sizeof(struct trapframe);
+  
+  if ((pagetable =  proc_pagetable(p)) == 0) {
+      goto bad;
+  }
+
+  // Load program into memory.
+  sz = 0;
+  
+  // load code/data
+  if ((sz = uvmalloc(pagetable, sz, hdr.code_sz)) == 0) {
+      goto bad;
+  }
+  if (loadseg(pagetable, 0, ip, pg_begin, hdr.code_sz) < 0) {
+      goto bad;
+  }
+  pg_begin += hdr.code_sz;
+
+  // Allocate two pages at the next page boundary.
+  // Make the first inaccessible.  Use the second as the user stack.
+  // Use the second as the user stack.
+  sz = PGROUNDUP(sz);
+
+  if ((sz = uvmalloc(pagetable, sz, sz + 2 * PGSIZE)) == 0) {
+      goto bad;
+  }
+  uvmclear(pagetable, sz-2*PGSIZE);
+
+  // load stack
+  if (loadseg(pagetable, hdr.code_sz + PGSIZE, ip, pg_begin, PGSIZE) < 0) {
+      goto bad;
+  }
+
+  iunlockput(ip);
+  ip = 0;
+
+  strncpy(p->name, hdr.name, 16);
+  oldpagetable = p->pagetable;
+  p->pagetable = pagetable;
+  p->sz = sz;
+  p->tracing = hdr.tracing;
+
+  proc_freepagetable(oldpagetable, oldsz);
+  return 0;
+
+  bad:
+  if(pagetable)
+    proc_freepagetable(pagetable, sz);
+  if(ip){
+    iunlockput(ip);
+    end_op(ROOTDEV);
+  }
+  return -1;
+}
+

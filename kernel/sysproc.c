@@ -95,3 +95,32 @@ sys_uptime(void)
   release(&tickslock);
   return xticks;
 }
+
+uint64
+sys_numprocs(void)
+{
+  return numprocs();
+}
+
+
+// turn on trace
+uint64 
+sys_traceon(void)
+{
+    if(myproc()->tracing) {
+      printf("[%d] sys_traceon()\n", myproc()->pid);
+    }
+    return ktraceon();
+}
+
+uint64
+sys_psinfo(void)
+{
+  uint64 info_p;
+  argaddr(0, &info_p);
+  if(myproc()->tracing) {
+    printf("[%d] sys_pinfo()\n", myproc()->pid);
+  }
+  kpinfo(info_p);
+  return 1;
+}

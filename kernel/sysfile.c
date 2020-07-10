@@ -16,6 +16,29 @@
 #include "file.h"
 #include "fcntl.h"
 
+// printing for strace
+void 
+cputc_encoded(char c)
+{
+    char buf[2];
+    if (c == '\n') {
+        printf("\\n");
+    } else {
+        buf[0] = c;
+        buf[1] = '\0';
+        printf("%s", buf);
+    }
+}
+
+void 
+cprintfn(char *s, int n)
+{
+    int i;
+    for (i = 0; i < n; i++) {
+        cputc_encoded(s[i]);
+    }
+}
+
 // Fetch the nth word-sized system call argument as a file descriptor
 // and return both the descriptor and the corresponding struct file.
 static int
@@ -70,11 +93,15 @@ uint64
 sys_read(void)
 {
   struct file *f;
-  int n;
+  int n, fd;
   uint64 p;
 
-  if(argfd(0, 0, &f) < 0 || argint(2, &n) < 0 || argaddr(1, &p) < 0)
+  if(argfd(0, &fd, &f) < 0 || argint(2, &n) < 0 || argaddr(1, &p) < 0)
     return -1;
+
+  if(myproc()->tracing) {
+    printf("[%d] sys_read(%d, <%x>, %d)\n", myproc()->pid, fd, f, n);
+  }
   return fileread(f, p, n);
 }
 
@@ -82,11 +109,18 @@ uint64
 sys_write(void)
 {
   struct file *f;
-  int n;
+  int n, fd;
   uint64 p;
 
-  if(argfd(0, 0, &f) < 0 || argint(2, &n) < 0 || argaddr(1, &p) < 0)
+  if(argfd(0, &fd, &f) < 0 || argint(2, &n) < 0 || argaddr(1, &p) < 0)
     return -1;
+  char character[n];
+  fetchstr(p, character, n);
+  if(myproc()->tracing) {
+    printf("[%d] sys_write(%d, \"", myproc()->pid, fd);
+    cprintfn(character, n);
+    printf("\", %d)\n", n);
+  } 
 
   return filewrite(f, p, n);
 }
@@ -481,3 +515,35 @@ sys_pipe(void)
   }
   return 0;
 }
+
+uint64 
+sys_suspend(void)
+{
+  int pid;
+  int fd;
+  struct file *f;
+  if((argint(0, &pid)) < 0) {
+    printf("sys_suspend() read \"pid\" failed");
+    return -1;
+  }
+  if((argfd(1, &fd, &f)) < 0) {
+    printf("sys_suspend() read \"file\" failed\n");
+    return -1;
+  }
+  ksuspend(pid, fd, f);
+  return 0;
+}
+
+uint64
+sys_resume(void)
+{
+  char path[MAXPATH];
+  if((argstr(0, path, MAXPATH)) < 0) {
+    printf("sys_resume() read filename failed\n");
+    return -1;
+  }
+  kresume(path);
+  return 0;
+}
+
+

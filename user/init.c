@@ -7,6 +7,22 @@
 
 char *argv[] = { "sh", 0 };
 
+void
+create_vcs(void)
+{
+  int i, fd;
+  char *dname = "vc0";
+
+  for (i = 0; i < 4; i++) {
+    dname[2] = '0' + i;
+    if ((fd = open(dname, O_RDWR)) < 0){
+      mknod(dname, 2 + i, 0);
+    } else {
+      close(fd);
+    }
+  }
+}
+
 int
 main(void)
 {
@@ -18,6 +34,8 @@ main(void)
   }
   dup(0);  // stdout
   dup(0);  // stderr
+
+  create_vcs();
 
   for(;;){
     printf("init: starting sh\n");
@@ -36,3 +54,4 @@ main(void)
     }
   }
 }
+

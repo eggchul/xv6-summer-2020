@@ -1,5 +1,6 @@
 struct stat;
 struct rtcdate;
+#include "kernel/pinfo.h"
 
 // system calls
 int fork(void);
@@ -23,6 +24,11 @@ int getpid(void);
 char* sbrk(int);
 int sleep(int);
 int uptime(void);
+int numprocs(void);
+int traceon(void);
+int psinfo(struct pinfo *);
+int suspend(int, int); // pid, fd
+int resume(char *); // fd
 
 // ulib.c
 int stat(const char*, struct stat*);
