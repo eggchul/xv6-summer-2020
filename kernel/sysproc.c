@@ -11,7 +11,11 @@ uint64
 sys_exit(void)
 {
   int n;
-  if(argint(0, &n) < 0)
+  int rv = argint(0, &n);
+  if(myproc()->tracing){
+    printf("[%d] sys_exit(%d)\n", myproc()->pid, n);
+  }
+  if( rv < 0)
     return -1;
   exit(n);
   return 0;  // not reached
@@ -20,12 +24,18 @@ sys_exit(void)
 uint64
 sys_getpid(void)
 {
+  if(myproc()->tracing) {
+    printf("[%d] sys_getpid()\n", myproc()->pid);
+  }
   return myproc()->pid;
 }
 
 uint64
 sys_fork(void)
 {
+  if(myproc()->tracing) {
+    printf("[%d] sys_fork()\n", myproc()->pid);
+  }
   return fork();
 }
 
@@ -33,7 +43,11 @@ uint64
 sys_wait(void)
 {
   uint64 p;
-  if(argaddr(0, &p) < 0)
+  int rv = argaddr(0, &p);
+  if(myproc()->tracing) {
+    printf("[%d] sys_wait(%d)\n", myproc()->pid, p);
+  }
+  if(rv < 0)
     return -1;
   return wait(p);
 }
@@ -44,7 +58,11 @@ sys_sbrk(void)
   int addr;
   int n;
 
-  if(argint(0, &n) < 0)
+  int rv1 = argint(0, &n);
+  if(myproc()->tracing) {
+    printf("[%d] sys_sbrk(%d)\n", myproc()->pid, n);
+  }
+  if( rv1 < 0)
     return -1;
   addr = myproc()->sz;
   if(growproc(n) < 0)
@@ -57,8 +75,11 @@ sys_sleep(void)
 {
   int n;
   uint ticks0;
-
-  if(argint(0, &n) < 0)
+  int rv = argint(0, &n);
+  if(myproc()->tracing) {
+    printf("[%d] sys_sleep(%d)\n", myproc()->pid, n);
+  }
+  if(rv < 0)
     return -1;
   acquire(&tickslock);
   ticks0 = ticks;
@@ -77,8 +98,11 @@ uint64
 sys_kill(void)
 {
   int pid;
-
-  if(argint(0, &pid) < 0)
+  int rv = argint(0, &pid);
+  if(myproc()->tracing){
+    printf("[%d] sys_kill(%d)\n", myproc()->pid, pid);
+  }  
+  if(rv < 0)
     return -1;
   return kill(pid);
 }
@@ -89,7 +113,9 @@ uint64
 sys_uptime(void)
 {
   uint xticks;
-
+  if(myproc()->tracing) {
+    printf("[%d] sys_uptime()\n", myproc()->pid);
+  }
   acquire(&tickslock);
   xticks = ticks;
   release(&tickslock);
