@@ -57,10 +57,8 @@ struct input {
   uint e;  // Edit index
 };
 
-static int active = 1;
-
-struct input cons1;
-struct input cons2;
+int active = 1;
+struct input cons[NDEV]; 
 struct input *consa;
 
 
@@ -142,6 +140,25 @@ consoleread(struct input *cons, int user_dst, uint64 dst, int n)
   return target - n;
 }
 
+static void
+nextconsole() 
+{
+  active = (active+1) % NDEV; 
+  consa = &cons[active];  
+}
+
+static void
+prevconsole() 
+{
+  if((active -1) < 0){
+    active = NDEV - 1;
+  } else {
+    active = (active-1) % NDEV; 
+  }
+  consa = &cons[active];  
+}
+
+
 //
 // the console input interrupt handler.
 // uartintr() calls this for input character.
@@ -151,11 +168,20 @@ consoleread(struct input *cons, int user_dst, uint64 dst, int n)
 void
 consoleintr(int c)
 {
-  int doconsoleswitch = 0;
+  int donextconsole = 0;
+  int doprevconsole = 0;
 
   acquire(&consa->lock);
 
   switch(c){
+  case C('N'):
+    printf("switch console\n");
+    donextconsole = 1;
+    break;
+  case C('B'):
+    printf("switch console\n");
+    doprevconsole = 1;
+    break;
   case C('P'):  // Print process list.
     procdump();
     break;
@@ -173,9 +199,6 @@ consoleintr(int c)
       consputc(BACKSPACE);
     }
     break;
-  case C('T'):
-      doconsoleswitch = 1;
-      break;
 
   default:
     if(c != 0 && consa->e-consa->r < INPUT_BUF){
@@ -199,67 +222,52 @@ consoleintr(int c)
   
   release(&consa->lock);
   
-  if(doconsoleswitch){
-    if (active == 1){
-      active = 2;
-      consa = &cons2;
-    }else{
-      active = 1;
-      consa = &cons1;
-    } 
-
+  if(donextconsole){
+    nextconsole();
+    printf("\nActive console now: %d\n", active);
+  }
+  if(doprevconsole){
+    prevconsole();
     printf("\nActive console now: %d\n", active);
   }
 
 }
 
 int
-cread1(int user_dst, uint64 dst, int n)
+cread(struct file *f, int user_dst, uint64 dst, int n)
 {
-  return consoleread(&cons1, user_dst, dst, n);
+  //printf("major: %d\n", f->major);
+  return consoleread(&cons[f->major], user_dst, dst, n);
 }
 
 int
-cwrite1(int user_src, uint64 src, int n)
+cwrite(struct file *f, int user_src, uint64 src, int n)
 {
-  return consolewrite(&cons1, user_src, src, n);
-}
-
-int
-cread2(int user_dst, uint64 dst, int n)
-{
-  return consoleread(&cons2, user_dst, dst, n);
-}
-
-int
-cwrite2(int user_src, uint64 src, int n)
-{
-  return consolewrite(&cons2, user_src, src, n);
+  return consolewrite(&cons[f->major], user_src, src, n);
 }
 
 void
 consoleinit(void)
 {
-  initlock(&cons1.lock, "cons1");
-  cons1.r = 0;
-  cons1.w = 0;
-  cons1.e = 0;
+  char *dname = "cons";
+  for(int i = 0; i < NDEV; i ++){
+    dname[4] = '0' + (i+1);
+    //printf("dname: %s\n", dname);
+    initlock(&cons[i].lock, dname);
+    cons[i].r = 0;
+    cons[i].w = 0;
+    cons[i].e = 0;  
+  }
 
-  initlock(&cons2.lock, "cons2");
-  cons2.r = 0;
-  cons2.w = 0;
-  cons2.e = 0;
-
-  consa = &cons1;
   active = 1;
+  consa = &cons[1];
 
   uartinit();
 
   // connect read and write system calls
   // to consoleread and consolewrite.
-  devsw[CONSOLE1].read = cread1;
-  devsw[CONSOLE1].write = cwrite1;
-
-  devsw[CONSOLE2].read = cread2;
-  devsw[CONSOLE2].write = cwrite2;
+  for(int i = 0; i < NDEV; i ++){
+    devsw[i].read = cread;
+    devsw[i].write = cwrite;
+  }
 }

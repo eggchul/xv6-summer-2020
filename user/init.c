@@ -4,6 +4,7 @@
 #include "kernel/stat.h"
 #include "user/user.h"
 #include "kernel/fcntl.h"
+#define CONNUM 10
 
 char *argv[] = { "sh", 0 };
 
@@ -13,10 +14,10 @@ create_vcs(void)
   int i, fd;
   char *dname = "vc0";
 
-  for (i = 0; i < 4; i++) {
+  for (i = 0; i < CONNUM; i++) {
     dname[2] = '0' + i;
     if ((fd = open(dname, O_RDWR)) < 0){
-      mknod(dname, 2 + i, 0);
+      mknod(dname, i, 0);
     } else {
       close(fd);
     }
