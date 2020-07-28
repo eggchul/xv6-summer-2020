@@ -1,4 +1,5 @@
 #include "pinfo.h"
+#include "cinfo.h"
 // Saved registers for kernel context switches.
 struct context {
   uint64 ra;
@@ -93,7 +94,8 @@ struct proc {
   void *chan;                  // If non-zero, sleeping on chan
   int killed;                  // If non-zero, have been killed
   int xstate;                  // Exit status to be returned to parent's wait
-  int pid;                     // Process ID
+  int pid;                     // Process ID (global pid)
+  int local_pid;               // Process ID within container
 
   // these are private to the process, so p->lock need not be held.
   uint64 kstack;               // Bottom of kernel stack for this process
@@ -105,4 +107,29 @@ struct proc {
   struct inode *cwd;           // Current directory
   char name[16];               // Process name (debugging)
   int tracing;                 // If non-zero, able to be traced
+
+  // container id that the process belongs to
+  struct container *cont;      // Container id
+};
+
+enum contstate { CUNUSED, CRUNNABLE, CRUNNING, CPAUSED, CSTOPPED};
+struct container {
+  struct spinlock lock;
+  //c->lock need to be held
+  enum contstate state;		     // State of container
+  int nextproc;				         // Next local proc id to sched 
+  // struct proc *ptable;		     // Table of processes owned by container
+  int cid;					           // Container ID
+  int used_proc;					     // Used processes
+	uint64 used_mem;       			 // Used pages of memory
+	uint64 used_dsk;					   // Used disk space (blocks)
+
+  //c->lock need not to be held
+  char name[16];          	   // Container name
+  int max_proc;					       // Max amount of processes	(NPROC)
+	uint64 max_sz;					     // Max size of memory (bytes)
+	uint64 max_dsk;					     // Max amount of disk space (bytes)
+	struct inode *rootdir;		   // Root directory
+  char vc_name[16];            // Virtual console name
+  int isroot;                  // 1 if is root container
 };

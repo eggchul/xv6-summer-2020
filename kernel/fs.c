@@ -635,7 +635,14 @@ namex(char *path, int nameiparent, char *name)
     ip = iget(ROOTDEV, ROOTINO);
   else
     ip = idup(myproc()->cwd);
-
+  //     // Absolute or relative
+  // if (myproc() == 0)
+  //   ip = iroot;
+  // else if(*path == '/') 
+  //   ip = idup(myproc()->cont->rootdir);
+  // else {    
+  //   ip = idup(myproc()->cwd);    
+  // }
   while((path = skipelem(path, name)) != 0){
     ilock(ip);
     if(ip->type != T_DIR){
@@ -673,3 +680,31 @@ nameiparent(char *path, char *name)
 {
   return namex(path, 1, name);
 }
+
+//
+void
+unusedblock(struct inode* ip)
+{
+  int b, bi, m;
+  struct buf *bp;
+  int countt = 0, countf = 0, bn = 0, nb=0;;
+  bp = 0;
+  printf("\nFree blocks:\n");
+  for(b = 0; b < sb.size; b += BPB){
+    nb++;
+    bp = bread(ip->dev, BBLOCK(b, sb));
+    for(bi = 0; bi < BPB && b + bi < sb.size; bi++){
+      m = 1 << (bi % 8);
+      ++countt;
+      if((bp->data[bi/8] & m) == 0){  // Is block free?
+        // if ( (countf % 16) == 0 ) printf("\n");
+        // printf("%d  ", bn );
+        ++countf;
+      }
+      bn++;
+    }
+    brelse(bp);
+  }
+  printf("\nTotal free blocks = %d\n", countf);
+}
+   

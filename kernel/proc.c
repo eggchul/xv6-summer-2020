@@ -72,6 +72,7 @@ myproc(void) {
   return p;
 }
 
+// global pid
 int
 allocpid() {
   int pid;
@@ -84,15 +85,26 @@ allocpid() {
   return pid;
 }
 
-// Look in the process table for an UNUSED proc.
+// local pid
+int
+alloclocalpid(struct container *c) {
+  int local_pid;
+  acquirecidlock();
+  local_pid = c->nextproc;
+  c->nextproc = c->nextproc + 1;
+  releasecidlock();
+  return local_pid;
+}
+
+// Look in the process table in target container for an UNUSED proc.
 // If found, initialize state required to run in the kernel,
 // and return with p->lock held.
 // If there are no free procs, return 0.
-static struct proc*
-allocproc(void)
+struct proc*
+allocproc(struct container *c)
 {
   struct proc *p;
-
+  acquire(&c->lock);
   for(p = proc; p < &proc[NPROC]; p++) {
     acquire(&p->lock);
     if(p->state == UNUSED) {
@@ -101,14 +113,17 @@ allocproc(void)
       release(&p->lock);
     }
   }
+  release(&c->lock);
   return 0;
 
 found:
   p->pid = allocpid();
-
+  p->local_pid = alloclocalpid(c);
+  p->cont = c;
   // Allocate a trapframe page.
   if((p->tf = (struct trapframe *)kalloc()) == 0){
     release(&p->lock);
+    release(&c->lock);
     return 0;
   }
 
@@ -120,7 +135,7 @@ found:
   memset(&p->context, 0, sizeof p->context);
   p->context.ra = (uint64)forkret;
   p->context.sp = p->kstack + PGSIZE;
-
+  release(&c->lock);
   return p;
 }
 
@@ -195,11 +210,11 @@ uchar initcode[] = {
 
 // Set up first user process.
 void
-userinit(void)
+userprocinit(struct container *c)
 {
   struct proc *p;
 
-  p = allocproc();
+  p = allocproc(c);
   initproc = p;
   
   // allocate one user page and copy init's instructions
@@ -212,10 +227,10 @@ userinit(void)
   p->tf->sp = PGSIZE;  // user stack pointer
 
   safestrcpy(p->name, "initcode", sizeof(p->name));
-  p->cwd = namei("/");
-
+  p->cwd = c->rootdir;
+  
   p->state = RUNNABLE;
-
+  
   release(&p->lock);
 }
 
@@ -242,14 +257,24 @@ growproc(int n)
 // Create a new process, copying the parent.
 // Sets up child kernel stack to return as if from fork() system call.
 int
-fork(void)
+fork(struct container * c)
 {
   int i, pid;
-  struct proc *np;
+  struct proc *np, *parent;
+  struct container *cont;
+	struct inode *cwd;
   struct proc *p = myproc();
-
+  if(c == 0){
+    cwd = p->cwd;
+		cont = p->cont;
+		parent = p;
+  }else {
+		cwd = c->rootdir;
+		cont = c;
+		parent = initproc;
+  }
   // Allocate process.
-  if((np = allocproc()) == 0){
+  if((np = allocproc(cont)) == 0){
     return -1;
   }
 
@@ -259,9 +284,11 @@ fork(void)
     release(&np->lock);
     return -1;
   }
+
+
   np->sz = p->sz;
 
-  np->parent = p;
+  np->parent = parent;
 
   // copy saved user registers.
   *(np->tf) = *(p->tf);
@@ -273,7 +300,7 @@ fork(void)
   for(i = 0; i < NOFILE; i++)
     if(p->ofile[i])
       np->ofile[i] = filedup(p->ofile[i]);
-  np->cwd = idup(p->cwd);
+  np->cwd = idup(cwd);
 
   safestrcpy(np->name, p->name, sizeof(p->name));
 

@@ -41,3 +41,10 @@ entry("traceon");
 entry("psinfo");
 entry("suspend");
 entry("resume");
+# entry("ccreate");
+# entry("cstart");
+# entry("cstop");
+# entry("cpause");
+# entry("cresume");
+# entry("cinfo");
+

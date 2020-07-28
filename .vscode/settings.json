@@ -1,0 +1,15 @@
+{
+    "files.associations": {
+        "__config": "cpp",
+        "functional": "c",
+        "string_view": "c",
+        "__mutex_base": "c",
+        "atomic": "c",
+        "condition_variable": "c",
+        "memory": "c",
+        "mutex": "c",
+        "*.tcc": "c",
+        "fstream": "c",
+        "ostream": "c"
+    }
+}

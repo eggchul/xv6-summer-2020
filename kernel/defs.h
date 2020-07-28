@@ -8,6 +8,7 @@ struct spinlock;
 struct sleeplock;
 struct stat;
 struct superblock;
+struct container;
 
 // bio.c
 void            binit(void);
@@ -54,6 +55,7 @@ struct inode*   nameiparent(char*, char*);
 int             readi(struct inode*, int, uint64, uint, uint);
 void            stati(struct inode*, struct stat*);
 int             writei(struct inode*, int, uint64, uint, uint);
+void            unusedblock(struct inode*);
 
 // ramdisk.c
 void            ramdiskinit(void);
@@ -64,6 +66,7 @@ void            ramdiskrw(struct buf*);
 void*           kalloc(void);
 void            kfree(void *);
 void            kinit();
+int             kunusedmem(void);
 
 // log.c
 void            initlog(int, struct superblock*);
@@ -85,7 +88,7 @@ void            printfinit(void);
 // proc.c
 int             cpuid(void);
 void            exit(int);
-int             fork(void);
+int             fork(struct container *);
 int             growproc(int);
 pagetable_t     proc_pagetable(struct proc *);
 void            proc_freepagetable(pagetable_t, uint64);
@@ -93,12 +96,14 @@ int             kill(int);
 struct cpu*     mycpu(void);
 struct cpu*     getmycpu(void);
 struct proc*    myproc();
-void            procinit(void);
+void    procinit(void);
+struct proc*    allocproc(struct container *);
+int             allolocalcpid(struct container *);
 void            scheduler(void) __attribute__((noreturn));
 void            sched(void);
 void            setproc(struct proc*);
 void            sleep(void*, struct spinlock*);
-void            userinit(void);
+void            userprocinit(struct container *);
 int             wait(uint64);
 void            wakeup(void*);
 void            yield(void);
@@ -110,6 +115,12 @@ int             ktraceon(void);
 int             kpinfo(uint64 dst);
 int             ksuspend(int, int, struct file *f);
 int             kresume(char*);
+
+// container.c
+void            cinit(void);
+void            userinit(void);
+void            acquirecidlock(void);
+void            releasecidlock(void);
 
 // swtch.S
 void            swtch(struct context*, struct context*);

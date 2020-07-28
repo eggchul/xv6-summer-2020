@@ -36,7 +36,8 @@ sys_fork(void)
   if(myproc()->tracing) {
     printf("[%d] sys_fork()\n", myproc()->pid);
   }
-  return fork();
+  //check for container
+  return fork(0);
 }
 
 uint64

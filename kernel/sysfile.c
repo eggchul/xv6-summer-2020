@@ -469,6 +469,7 @@ sys_chdir(void)
   begin_op();
   int rv1 = argstr(0, path, MAXPATH);
   ip = namei(path);
+
   if(myproc()->tracing) {
     printf("[%d] sys_chdir(\"%s\")\n", myproc()->pid, path);
   }

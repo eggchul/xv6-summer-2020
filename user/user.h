@@ -1,6 +1,7 @@
 struct stat;
 struct rtcdate;
 #include "kernel/pinfo.h"
+#include "kernel/cinfo.h"
 
 // system calls
 int fork(void);
@@ -44,3 +45,11 @@ void* memset(void*, int, uint);
 void* malloc(uint);
 void free(void*);
 int atoi(const char*);
+
+// container.c
+// int ccreate(void);
+// int cstart(char *);
+// int cstop(char *);
+// int cpause(char *);
+// int cresume(char *);
+// int cinfo(struct cinfo *);
