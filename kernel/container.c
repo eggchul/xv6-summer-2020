@@ -9,7 +9,6 @@
 #include "proc.h"
 
 struct container *root_container;
-int nextcid = 1;
 struct spinlock cid_lock;
 void acquirecidlock(void) { acquire(&cid_lock); }
 
@@ -100,7 +99,7 @@ initrootcont(void)
 	c->state = CRUNNABLE;	
 	c->rootdir = idup(rootdir);
     c->isroot = 1; // this is the root container
-    
+    c->nextproc = 1;
 	safestrcpy(c->name, "rootcont", sizeof(c->name));	
 	release(&c->lock);
 
@@ -138,6 +137,7 @@ kccreate(char *name){
 	printf("idup for cont done\n");
 	strncpy(c->name, name, 16);
 	c->state = CRUNNABLE;	
+	c->nextproc = 1;
 	c->isroot = 0;
 	release(&c->lock);	
 	printf("cont lock release\n");

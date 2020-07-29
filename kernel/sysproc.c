@@ -148,6 +148,5 @@ sys_psinfo(void)
   if(myproc()->tracing) {
     printf("[%d] sys_pinfo()\n", myproc()->pid);
   }
-  kpinfo(info_p);
-  return 1;
+  return kpinfo(info_p);
 }

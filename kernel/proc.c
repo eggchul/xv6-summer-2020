@@ -732,19 +732,40 @@ kpinfo(uint64 info_p)
   struct pdata *pd_array = psinfo.pdata_array;
   int count = 0;
   struct proc *p;
+  int isroot = myproc()->cont->isroot;
+
   for(p = proc; p < &proc[NPROC]; p++) {
-    acquire(&p->lock);
-    if(p->state != UNUSED) {
-      pd_array[count].pid = p->pid;
-      strncpy(pd_array[count].name, p->name, 16);
-      pd_array[count].mem = p->sz;
-      count +=1;
+    if(isroot){
+      acquire(&p->lock);
+      if(p->state != UNUSED) {
+        pd_array[count].pid = p->pid;
+        strncpy(pd_array[count].name, p->name, 16);
+        pd_array[count].mem = p->sz;
+        pd_array[count].local_pid = p->local_pid;
+        strncpy(pd_array[count].contname, p->cont->name, 16);
+        count +=1;
+      }
+      psinfo.numproc = count;
+      release(&p->lock);
+    }else{
+      acquire(&p->lock);
+      if((p->cont == myproc()->cont) && (p->state != UNUSED)) {
+        strncpy(pd_array[count].name, p->name, 16);
+        pd_array[count].mem = p->sz;
+        pd_array[count].local_pid = p->local_pid;
+        count +=1;
+      }
+      psinfo.numproc = count;
+      release(&p->lock);
     }
-    psinfo.numproc = count;
-    release(&p->lock);
+
   }
   copyout(myproc()->pagetable, info_p, (void *) &psinfo, sizeof(struct pinfo));
-  return 0;
+  if(isroot){
+    return 6;
+  }else{
+    return 0;
+  }
 }
 
 int 
