@@ -604,3 +604,13 @@ sys_resume(void)
 }
 
 
+uint64
+sys_ccreate(void)
+{
+  char path[MAXPATH];
+  int rv1 = argstr(0, path, MAXPATH);
+  if(rv1 < 0){
+    return -1;
+  }
+  return kccreate(path);
+}

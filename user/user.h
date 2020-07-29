@@ -46,8 +46,8 @@ void* malloc(uint);
 void free(void*);
 int atoi(const char*);
 
-// container.c
-// int ccreate(void);
+//container.c
+int ccreate(char *);
 // int cstart(char *);
 // int cstop(char *);
 // int cpause(char *);

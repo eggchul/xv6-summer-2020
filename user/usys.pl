@@ -41,7 +41,7 @@ entry("traceon");
 entry("psinfo");
 entry("suspend");
 entry("resume");
-# entry("ccreate");
+entry("ccreate");
 # entry("cstart");
 # entry("cstop");
 # entry("cpause");

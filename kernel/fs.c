@@ -631,18 +631,18 @@ namex(char *path, int nameiparent, char *name)
 {
   struct inode *ip, *next;
 
-  if(*path == '/')
+  // if(*path == '/')
+  //   ip = iget(ROOTDEV, ROOTINO);
+  // else
+  //   ip = idup(myproc()->cwd);
+  // Absolute or relative
+  if (myproc() == 0){
     ip = iget(ROOTDEV, ROOTINO);
-  else
-    ip = idup(myproc()->cwd);
-  //     // Absolute or relative
-  // if (myproc() == 0)
-  //   ip = iroot;
-  // else if(*path == '/') 
-  //   ip = idup(myproc()->cont->rootdir);
-  // else {    
-  //   ip = idup(myproc()->cwd);    
-  // }
+  }else if(*path == '/'){
+    ip = idup(myproc()->cont->rootdir);
+  }else {    
+    ip = idup(myproc()->cwd);    
+  }
   while((path = skipelem(path, name)) != 0){
     ilock(ip);
     if(ip->type != T_DIR){

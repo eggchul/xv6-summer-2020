@@ -38,6 +38,36 @@ found:
 	return c;
 }
 
+// find container with cid
+struct container*
+cid2cont(int cid)
+{
+	struct container* c;
+	int i;
+
+	for (i = 0; i < NCONT; i++) {
+		c = &cont[i];
+		if (c->cid== cid && c->state != CUNUSED)
+			return c;
+	}
+	return 0;
+}
+
+// find container with name
+struct container*
+name2cont(char* name)
+{
+	struct container* c;
+	int i;
+
+	for (i = 0; i < NCONT; i++) {
+		c = &cont[i];
+		if (strncmp(name, c->name, strlen(name)) == 0 && c->state != CUNUSED)
+			return c;
+	}
+	return 0;
+}
+
 void
 cinit(void)
 {
@@ -79,26 +109,38 @@ initrootcont(void)
 
 //contceate
 int
-ccreate(char *name){
+kccreate(char *name){
 	struct container *c;
 	struct inode *rootdir;
-
-	if ((c = alloccont()) == 0) 
-		panic("Can't alloc init container.");
-
-	if ((rootdir = namei(name)) == 0){
-		c->state = CUNUSED;
+    
+	if((name2cont(name)) != 0){
+		printf("Container %s is created already\n", name);
 		return -1;
 	}
 
+	if((c = alloccont()) == 0){
+		printf("Can't alloc init container.");
+		return -1;
+	}
+
+	if((rootdir = namei(name)) == 0){
+		printf("Cannot find path\n");
+		c->state = CUNUSED;
+		return -1;
+	}
+	
 	acquire(&c->lock);
 	c->max_proc = NPROC/NCONT;
 	c->max_sz = MAX_CMEM;
 	c->max_dsk = MAX_CDISK;
+	printf("acquired container lock\n");
 	c->rootdir = idup(rootdir);
+	printf("idup for cont done\n");
 	strncpy(c->name, name, 16);
 	c->state = CRUNNABLE;	
+	c->isroot = 0;
 	release(&c->lock);	
+	printf("cont lock release\n");
 
 	return 1; 
 }

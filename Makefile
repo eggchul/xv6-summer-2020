@@ -140,6 +140,7 @@ UPROGS=\
 	$U/_suspend\
 	$U/_resume\
 	$U/_vctest\
+	$U/_ccreate\
 
 fs.img: mkfs/mkfs README $(UPROGS)
 	mkfs/mkfs fs.img README $(UPROGS)

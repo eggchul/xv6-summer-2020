@@ -121,6 +121,7 @@ void            cinit(void);
 void            userinit(void);
 void            acquirecidlock(void);
 void            releasecidlock(void);
+int             kccreate(char *);
 
 // swtch.S
 void            swtch(struct context*, struct context*);
