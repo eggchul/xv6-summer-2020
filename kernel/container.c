@@ -132,15 +132,12 @@ kccreate(char *name){
 	c->max_proc = NPROC/NCONT;
 	c->max_sz = MAX_CMEM;
 	c->max_dsk = MAX_CDISK;
-	printf("acquired container lock\n");
 	c->rootdir = idup(rootdir);
-	printf("idup for cont done\n");
 	strncpy(c->name, name, 16);
 	c->state = CRUNNABLE;	
 	c->nextproc = 1;
 	c->isroot = 0;
 	release(&c->lock);	
-	printf("cont lock release\n");
 
 	return 1; 
 }

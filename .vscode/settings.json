@@ -10,6 +10,12 @@
         "mutex": "c",
         "*.tcc": "c",
         "fstream": "c",
-        "ostream": "c"
+        "ostream": "c",
+        "exception": "cpp",
+        "iosfwd": "cpp",
+        "new": "cpp",
+        "sstream": "cpp",
+        "streambuf": "cpp",
+        "locale": "cpp"
     }
 }
