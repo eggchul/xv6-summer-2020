@@ -897,3 +897,47 @@ kresume(char *path)
   return -1;
 }
 
+int
+containerkillwithpid(struct container *c, int local_pid)
+{
+  struct proc *p;
+  for(p = proc; p < &proc[NPROC]; p++){
+    if(p->cont == c){
+      acquire(&c->lock);
+      acquire(&p->lock);
+      if(p->local_pid == local_pid){
+        p->killed = 1;
+        if(p->state == SLEEPING || p->state == SUSPENDED){
+          // Wake process from sleep().
+          p->state = RUNNABLE;
+        }
+        release(&p->lock);
+        release(&c->lock);
+        return 0;
+      }
+      release(&p->lock);
+      release(&c->lock);
+    }
+  }
+  return -1;
+}
+
+int
+containerkillall(struct container *c)
+{
+  struct proc *p;
+  for(p = proc; p < &proc[NPROC]; p++){
+    if(p->cont == c){
+      acquire(&c->lock);
+      acquire(&p->lock);
+      p->killed = 1;
+      if(p->state == SLEEPING || p->state == SUSPENDED){
+        // Wake process from sleep().
+        p->state = RUNNABLE;
+      }
+      release(&p->lock);
+      release(&c->lock);
+    }
+  }
+  return -1;
+}

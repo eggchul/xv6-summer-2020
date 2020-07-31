@@ -43,7 +43,7 @@ int
 main(int argc, char *argv[]){
     if(argc < 2){
         printf("too few arguments\n");
-        printf("usage: ccreate <container name>\n");
+        printf("usage: ccreate <container name> [cmd] [cmd] ... \n");
     }
     if (mkdir(argv[1]) != 0) {
 		printf( "Error creating directory %s\n", argv[2]);
@@ -54,6 +54,7 @@ main(int argc, char *argv[]){
     int i;
     for(i = 2; i < argc; i++){
         cp(argv[1],argv[i]);
+        //check if over disk size
     }
     if((ccreate(argv[1])) == 1){
         printf("container %s is created\n",argv[1]);

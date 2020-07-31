@@ -1,5 +1,6 @@
 #include "pinfo.h"
 #include "cinfo.h"
+
 // Saved registers for kernel context switches.
 struct context {
   uint64 ra;

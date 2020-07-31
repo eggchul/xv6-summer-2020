@@ -159,7 +159,8 @@ sys_fstat(void)
   struct file *f;
   uint64 st; // user pointer to struct stat
   int rv1 = argfd(0, 0, &f);
-  int rv2 = argaddr(1, &st);  if(myproc()->tracing) {
+  int rv2 = argaddr(1, &st);  
+  if(myproc()->tracing) {
     printf("[%d] sys_fstat(%d, <%x>)\n", myproc()->pid, st, f);
   }
   if( rv1 < 0 || rv2 < 0)
@@ -613,4 +614,25 @@ sys_ccreate(void)
     return -1;
   }
   return kccreate(path);
+}
+
+// start container with vc
+uint64
+sys_cstart(void)
+{
+  char contname[MAXPATH], vcname[MAXPATH];
+  int rv1 = argstr(0, contname, MAXPATH);
+  int rv2 = argstr(1, vcname, MAXPATH);
+  if(rv1 < 0 || rv2 <0){
+    printf("sys_cstart: argstr path error\n");
+    return -1;
+  }
+  int fd;
+  struct file *f;
+  int rv3 = argfd(2, &fd, &f);
+  if(rv3 < 0){
+    printf("sys_cstart: read fd error\n");
+    return -1;
+  }
+  return kcstart(contname, vcname, f);
 }

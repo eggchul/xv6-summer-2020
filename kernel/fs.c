@@ -638,7 +638,7 @@ namex(char *path, int nameiparent, char *name)
   // Absolute or relative
   if (myproc() == 0){
     ip = iget(ROOTDEV, ROOTINO);
-  }else if(*path == '/'){
+  }else if((*path == '/') && myproc()->cont->isroot){
     ip = idup(myproc()->cont->rootdir);
   }else {    
     ip = idup(myproc()->cwd);    
@@ -706,5 +706,12 @@ unusedblock(struct inode* ip)
     brelse(bp);
   }
   printf("\nTotal free blocks = %d\n", countf);
+}
+
+int
+linkvc2cont(struct inode * contdir, struct file *vc){
+  contdir->dev = vc->major;
+  contdir->major = vc->major;
+  return 1;
 }
    

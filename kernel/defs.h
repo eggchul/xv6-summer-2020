@@ -9,6 +9,7 @@ struct sleeplock;
 struct stat;
 struct superblock;
 struct container;
+struct inode;
 
 // bio.c
 void            binit(void);
@@ -56,6 +57,7 @@ int             readi(struct inode*, int, uint64, uint, uint);
 void            stati(struct inode*, struct stat*);
 int             writei(struct inode*, int, uint64, uint, uint);
 void            unusedblock(struct inode*);
+int             linkvc2cont(struct inode *, struct file *);
 
 // ramdisk.c
 void            ramdiskinit(void);
@@ -115,6 +117,8 @@ int             ktraceon(void);
 int             kpinfo(uint64 dst);
 int             ksuspend(int, int, struct file *f);
 int             kresume(char*);
+int             containerkillwithpid(struct container *, int);
+int             containerkillall(struct container *);
 
 // container.c
 void            cinit(void);
@@ -122,6 +126,11 @@ void            userinit(void);
 void            acquirecidlock(void);
 void            releasecidlock(void);
 int             kccreate(char *);
+int             kcstart(char *, char *, struct file *);
+int             name2cid(char* name);
+int             checkcontdisk(char* funcname, struct container *c, uint64 filesize);
+int             checkcontmem(char* funcname, struct container *c, uint64 procsz);
+int             checkprocusage(char* funcname, struct container *c);
 
 // swtch.S
 void            swtch(struct context*, struct context*);

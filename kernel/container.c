@@ -67,6 +67,21 @@ name2cont(char* name)
 	return 0;
 }
 
+int
+name2cid(char* name)
+{
+	struct container* c;
+	int i;
+
+	for (i = 0; i < NCONT; i++) {
+		c = &cont[i];
+		if (strncmp(name, c->name, strlen(name)) == 0 && c->state != CUNUSED)
+			return c->cid;
+	}
+	return -1;// if no container found
+}
+
+
 void
 cinit(void)
 {
@@ -106,6 +121,70 @@ initrootcont(void)
 	return c;
 }
 
+// Set up first user process with container
+void
+userinit(void)
+{
+	struct container *root;
+	root = initrootcont();
+	userprocinit(root);
+}
+
+// check target container current free disk space 
+int
+checkcontdisk(char* funcname, struct container *c, uint64 filesize)
+{
+	uint64 total = c->used_dsk + filesize;
+	if(total > c->max_dsk){
+		printf("Error %s: disk space is not enough in container %s\n", funcname, c->name);
+		return -1;
+	}
+	return 0;
+}
+
+// check target container current free memory
+int
+checkcontmem(char* funcname, struct container *c, uint64 procsz)
+{
+	uint64 total = c->used_mem + procsz;
+	if(total > c->max_sz){
+		printf("Error %s: memory space is not enough in container %s\n", funcname, c->name);
+		return -1;
+	}
+	return 0;
+}
+
+// check target container current process usage
+int
+checkprocusage(char* funcname, struct container *c)
+{
+	if(c->max_proc == c->used_proc){
+		printf("Error %s: too many process in container %s\n", funcname, c->name);
+		return -1;
+	}
+	return 0;
+}
+
+// check used disk space of a container
+uint
+checkuseddsk(struct container *c){
+
+	return -1;
+}
+
+
+//fork process to target container by cid
+int
+cfork(int cid)
+{
+	struct container* c;
+	if ((c = cid2cont(cid)) == 0){
+		printf("Error: cfork, cannot find container\n");
+		return -1;
+	}
+	checkprocusage("cfork", c);
+	return fork(c);
+}
 //contceate
 int
 kccreate(char *name){
@@ -143,17 +222,113 @@ kccreate(char *name){
 }
 
 //contstart
+int kcstart(char* name, char* vcname, struct file *f)
+{
+	struct container *c;
+	c = name2cont(name);
+	if(c == 0){
+		printf("Error: kcstart, no container %s found\n", name);
+		return -1;
+	}
+	acquire(&c->lock);
+	strncpy(c->vc_name, vcname, 16);
+	linkvc2cont(c->rootdir, f);
+	c->state = CRUNNING;
+	return 1;
+}
 
 //contpause
+int 
+kcpause(char* name)
+{
+	struct container *c;
+	c = name2cont(name);
+	if(c == 0){
+		printf("Error: kcspause, no container %s found\n", name);
+		return -1;
+	}
+	if(c->isroot){
+		printf("Error: kcpause,  cannot pause root container\n");
+		return -1;
+	}
+	if (c->state != CRUNNABLE && c->state != CPAUSED){
+		printf("Error: kcpause, cannot pause a not running container\n");
+		return -1;
+	}
+	acquire(&c->lock);
+	c->state = CPAUSED;
+	release(&c->lock);
+	return 1;
+}
 
 //contstop == kill
+int 
+kcstop(char* name)
+{
+	struct container *c;
+	c = name2cont(name);
+	if(c == 0){
+		printf("Error: kcstop, no container %s found\n", name);
+		return -1;
+	}
+	if(c->isroot){
+		printf("Error: kcstop,  cannot stop root container\n");
+		return -1;
+	}
+	
+	if (c->state != CRUNNABLE && c->state != CPAUSED){
+		printf("Error: kcstop, cannot kill a not running container\n");
+		return -1;
+	}
 
-//contfree
-void
+	acquire(&c->lock);
+	containerkillall(c);
+	c->state = CSTOPPED;
+	release(&c->lock);
+	return 1;
+}
+
+//contfree: free the container similar to exit
+int
 freecontainer(struct container *c)
 { 
-
+	acquire(&c->lock);
+	c->name[0] = 0;
+	c->max_dsk = 0;
+	c->max_sz = 0;
+	c->max_proc = 0;
+	c->rootdir = 0;
+	c->nextproc = 0;
+	c->used_dsk = 0;
+	c->used_mem = 0;
+	c->used_proc = 0;
+	c->state = CUNUSED;	
+	release(&c->lock);
+	return 1;
 }
+
+// cresume
+int
+kcresume(char* name)
+{
+	struct container *c;
+	c = name2cont(name);
+	if(c == 0){
+		printf("Error: kcresume, no container %s found\n", name);
+		return -1;
+	}
+	
+	if (c->state != CRUNNABLE && c->state != CPAUSED){
+		printf("Error: kcresume, container is already in progress\n");
+		return -1;
+	}
+
+	acquire(&c->lock);
+	c->state = CRUNNABLE;
+	release(&c->lock);
+	return 1;
+}
+
 
 // continfo
 int
@@ -162,11 +337,4 @@ continfo(uint64 info_c)
 	return 1;
 }
 
-// Set up first user process with container
-void
-userinit(void)
-{
-	struct container *root;
-	root = initrootcont();
-	userprocinit(root);
-}
+
