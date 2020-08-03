@@ -129,8 +129,10 @@ struct container {
   char name[16];          	   // Container name
   int max_proc;					       // Max amount of processes	(NPROC)
 	uint64 max_sz;					     // Max size of memory (bytes)
+  
 	uint64 max_dsk;					     // Max amount of disk space (bytes)
 	struct inode *rootdir;		   // Root directory
   char vc_name[16];            // Virtual console name
   int isroot;                  // 1 if is root container
+  int ticks;                   // counter of ticks
 };

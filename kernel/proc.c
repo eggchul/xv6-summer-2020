@@ -90,8 +90,7 @@ int
 alloclocalpid(struct container *c) {
   int local_pid;
   acquirecidlock();
-  local_pid = c->nextproc;
-  c->nextproc = c->nextproc + 1;
+  local_pid = c->used_proc;
   releasecidlock();
   return local_pid;
 }
@@ -118,12 +117,21 @@ allocproc(struct container *c)
 
 found:
   p->pid = allocpid();
-  p->local_pid = alloclocalpid(c);
+  if(c->isroot){
+    p->local_pid = p->pid;
+  }else{
+    p->local_pid = alloclocalpid(c);
+  }
   p->cont = c;
   // Allocate a trapframe page.
   if((p->tf = (struct trapframe *)kalloc()) == 0){
     release(&p->lock);
     release(&c->lock);
+    if(c->isroot != 1 && updatecontmem(PGSIZE, c) < 0){
+      printf("Not enough memory in container \n");
+      kcstop(c->name);
+      exit(0);
+    }
     return 0;
   }
 
@@ -227,7 +235,7 @@ userprocinit(struct container *c)
   p->tf->sp = PGSIZE;  // user stack pointer
 
   safestrcpy(p->name, "initcode", sizeof(p->name));
-  p->cwd = c->rootdir;
+  p->cwd = idup(c->rootdir);
   
   p->state = RUNNABLE;
   
@@ -624,10 +632,17 @@ int
 kill(int pid)
 {
   struct proc *p;
-
+  struct container *c = myproc()->cont;
+  if(c->isroot != 1){
+    return containerkillwithpid(c, pid);
+  }
   for(p = proc; p < &proc[NPROC]; p++){
     acquire(&p->lock);
     if(p->pid == pid){
+      if(p->cont->isroot != 1){ // process is not in current container
+        printf("Current container has no access to this pid\n");
+        return -1;
+      }
       p->killed = 1;
       if(p->state == SLEEPING || p->state == SUSPENDED){
         // Wake process from sleep().

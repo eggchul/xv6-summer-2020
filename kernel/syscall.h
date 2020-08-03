@@ -26,8 +26,9 @@
 #define SYS_suspend  25
 #define SYS_resume   26
 #define SYS_ccreate  27
-// #define SYS_cstart   28
-// #define SYS_cstop    29
-// #define SYS_cpause   30
-// #define SYS_cresume  31
-// #define SYS_cinfo    32
+#define SYS_cstart   28
+#define SYS_cfork    29
+#define SYS_cstop    30
+// #define SYS_cpause   31
+// #define SYS_cresume  32
+// #define SYS_cinfo    33

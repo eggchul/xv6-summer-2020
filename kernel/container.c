@@ -61,8 +61,10 @@ name2cont(char* name)
 
 	for (i = 0; i < NCONT; i++) {
 		c = &cont[i];
-		if (strncmp(name, c->name, strlen(name)) == 0 && c->state != CUNUSED)
+		printf("cont name: %s, t name: %s\n", c->name, name);
+		if (strncmp(name, c->name, strlen(name)) == 0){
 			return c;
+		}
 	}
 	return 0;
 }
@@ -75,20 +77,95 @@ name2cid(char* name)
 
 	for (i = 0; i < NCONT; i++) {
 		c = &cont[i];
-		if (strncmp(name, c->name, strlen(name)) == 0 && c->state != CUNUSED)
+		if (strncmp(name, c->name, strlen(name)) == 0)
 			return c->cid;
 	}
 	return -1;// if no container found
+}
+
+int
+updatecontmem(uint64 memchanged, struct container *c)
+{
+	acquire(&c->lock);
+	if(c->used_mem + memchanged > c->max_sz){
+		printf("Container memory exceed\n");
+		release(&c->lock);
+		return -1;
+	} else {
+		c->used_mem = c->used_mem + memchanged;
+		release(&c->lock);
+	}
+	return 1;
+}
+
+int 
+updatecontdsk(uint64 dskchanged, struct container *c)
+{
+	acquire(&c->lock);
+	if(c->used_dsk + dskchanged > c->max_dsk){
+		printf("Container disk exceed\n");
+		release(&c->lock);
+		return -1;
+	}else{
+		c->used_dsk = c->used_dsk + dskchanged;
+		release(&c->lock);
+	}
+	return 1;
+}
+
+int
+updatecontproc(int procchange, struct container *c)
+{
+	acquire(&c->lock);
+	if(c->used_proc + procchange > c->max_proc){
+		printf("Container proc exceed\n");
+		release(&c->lock);
+		return -1;
+	}else{
+		c->used_proc = c->used_proc + procchange;
+		release(&c->lock);
+	}
+	return 1;
+}
+
+struct container*
+getnextconttosched()
+{
+	int i;
+	struct container *c = &cont[0];
+	int holder = cont[0].ticks;
+	for(i = 1; i < NCONT; i++){
+		if(cont[i].ticks < holder && cont[i].state == CRUNNABLE){
+			c = &cont[i];
+		}
+	}
+	return c;
+}
+
+// if the vc is used by other container
+int 
+ifvcavaliable(char* vcname){
+	struct container* c;
+	int i;
+	for (i = 0; i < NCONT; i++) {
+		c = &cont[i];
+		if (strncmp(vcname, c->vc_name, strlen(vcname)) == 0 && c->state != CUNUSED){
+			printf("vc is used\n");
+			return -1;
+		}
+	}
+	return 1;
 }
 
 
 void
 cinit(void)
 {
-	struct container *c;
 	initlock(&cid_lock, "nextcid");
-	for(c = cont; c < &cont[NCONT]; c++){
-		initlock(&c->lock, "cont");
+	int i;
+	for(i = 0; i < NCONT; i ++){
+		initlock(&cont[i].lock, "cont");
+		cont[i].cid = i;
 	}
 	procinit();
 }
@@ -99,14 +176,13 @@ initrootcont(void)
 {
 	struct container *c;
 	struct inode *rootdir;
-	printf("initing root container ...\n");
+
 	if ((c = alloccont()) == 0) 
 		panic("Can't alloc init container.");
-
-	printf("initing root dir...\n");
+	printf("done initing root container\n");
 	if ((rootdir = namei("/")) == 0)
 		panic("Can't set '/' as root container's rootdir");
-
+	printf("done initing root dir\n");
 	acquire(&c->lock);
 	c->max_proc = NPROC;
 	c->max_sz = MAX_CMEM;
@@ -115,6 +191,7 @@ initrootcont(void)
 	c->rootdir = idup(rootdir);
     c->isroot = 1; // this is the root container
     c->nextproc = 1;
+	c->ticks = 0;
 	safestrcpy(c->name, "rootcont", sizeof(c->name));	
 	release(&c->lock);
 
@@ -130,59 +207,18 @@ userinit(void)
 	userprocinit(root);
 }
 
-// check target container current free disk space 
-int
-checkcontdisk(char* funcname, struct container *c, uint64 filesize)
-{
-	uint64 total = c->used_dsk + filesize;
-	if(total > c->max_dsk){
-		printf("Error %s: disk space is not enough in container %s\n", funcname, c->name);
-		return -1;
-	}
-	return 0;
-}
-
-// check target container current free memory
-int
-checkcontmem(char* funcname, struct container *c, uint64 procsz)
-{
-	uint64 total = c->used_mem + procsz;
-	if(total > c->max_sz){
-		printf("Error %s: memory space is not enough in container %s\n", funcname, c->name);
-		return -1;
-	}
-	return 0;
-}
-
-// check target container current process usage
-int
-checkprocusage(char* funcname, struct container *c)
-{
-	if(c->max_proc == c->used_proc){
-		printf("Error %s: too many process in container %s\n", funcname, c->name);
-		return -1;
-	}
-	return 0;
-}
-
-// check used disk space of a container
-uint
-checkuseddsk(struct container *c){
-
-	return -1;
-}
-
-
 //fork process to target container by cid
 int
-cfork(int cid)
+kcfork(char* name)
 {
 	struct container* c;
-	if ((c = cid2cont(cid)) == 0){
-		printf("Error: cfork, cannot find container\n");
+	if ((c = name2cont(name)) == 0){
+		printf("Error: cfork, cannot find container %s\n", name);
 		return -1;
 	}
-	checkprocusage("cfork", c);
+	if(updatecontproc(1, c)<0){
+		return kcstop(c->name);
+	}
 	return fork(c);
 }
 //contceate
@@ -211,9 +247,10 @@ kccreate(char *name){
 	c->max_proc = NPROC/NCONT;
 	c->max_sz = MAX_CMEM;
 	c->max_dsk = MAX_CDISK;
-	c->rootdir = idup(rootdir);
+	c->rootdir = rootdir;
 	strncpy(c->name, name, 16);
-	c->state = CRUNNABLE;	
+	printf("cont name %s\n",c->name);
+	c->state = !CUNUSED;	
 	c->nextproc = 1;
 	c->isroot = 0;
 	release(&c->lock);	
@@ -221,19 +258,27 @@ kccreate(char *name){
 	return 1; 
 }
 
-//contstart
-int kcstart(char* name, char* vcname, struct file *f)
+//contstart take in container name and vc name
+int kcstart(char* name, char* vcname) 
 {
 	struct container *c;
+	if(ifvcavaliable(vcname) < 0){
+		return -1;
+	}
 	c = name2cont(name);
+	if(c->state != CRUNNABLE){
+		printf("Error: kcstart, container %s is started\n", name);
+		return -1;
+	}
 	if(c == 0){
 		printf("Error: kcstart, no container %s found\n", name);
 		return -1;
 	}
+	printf("container found\n");
 	acquire(&c->lock);
 	strncpy(c->vc_name, vcname, 16);
-	linkvc2cont(c->rootdir, f);
 	c->state = CRUNNING;
+	release(&c->lock);
 	return 1;
 }
 
@@ -285,6 +330,7 @@ kcstop(char* name)
 	containerkillall(c);
 	c->state = CSTOPPED;
 	release(&c->lock);
+	freecontainer(c);
 	return 1;
 }
 
@@ -331,10 +377,39 @@ kcresume(char* name)
 
 
 // continfo
+/*
+It will show each container
+The name of the container
+The directory associated with the container
+The max number of processes, the max amount of memory allocated, and the max disk space allocated
+The amount of used/available processes, memory, and disk space
+The processes running in the container
+The execution statistics and percent of CPU consumed by each process and each container
+*/
 int
 continfo(uint64 info_c)
 {
-	return 1;
+  struct container *c;
+  int isroot = myproc()->cont->isroot;
+
+  for(c = cont; c < &cont[NCONT]; c++) {
+    if(isroot){
+      acquire(&c->lock);
+
+      release(&c->lock);
+    }else{
+      acquire(&c->lock);
+
+      release(&c->lock);
+    }
+
+  }
+
+  if(isroot){
+    return 6;
+  }else{
+    return 0;
+  }
 }
 
 

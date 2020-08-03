@@ -126,12 +126,18 @@ void            userinit(void);
 void            acquirecidlock(void);
 void            releasecidlock(void);
 int             kccreate(char *);
-int             kcstart(char *, char *, struct file *);
+int             kcstart(char *, char *);
+int             kcpause(char* name);
+int             kcstop(char* name);
+int             freecontainer(struct container *c);
+int             kcresume(char* name);
+int             continfo(uint64 info_c);
 int             name2cid(char* name);
-int             checkcontdisk(char* funcname, struct container *c, uint64 filesize);
-int             checkcontmem(char* funcname, struct container *c, uint64 procsz);
-int             checkprocusage(char* funcname, struct container *c);
-
+int             kcfork(char*);
+int             updatecontdsk(uint64 dskchanged, struct container *c);
+int             updatecontmem(uint64 memchanged, struct container *c);
+int             updatecontproc(int procchange, struct container *c);
+struct container* getnextconttosched();
 // swtch.S
 void            swtch(struct context*, struct context*);
 

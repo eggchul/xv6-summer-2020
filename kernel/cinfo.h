@@ -4,6 +4,17 @@
 #include "types.h"
 #include "param.h"
 
+
+/*
+It will show each container
+The name of the container
+The directory associated with the container
+The max number of processes, the max amount of memory allocated, and the max disk space allocated
+The amount of used/available processes, memory, and disk space
+The processes running in the container
+The execution statistics and percent of CPU consumed by each process and each container
+*/
+
 // Information of a single container
 struct cinfo {
   int cid;					     // Container ID

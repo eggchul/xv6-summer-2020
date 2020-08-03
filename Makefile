@@ -141,6 +141,7 @@ UPROGS=\
 	$U/_resume\
 	$U/_vctest\
 	$U/_ccreate\
+	$U/_cstart\
 
 fs.img: mkfs/mkfs README $(UPROGS)
 	mkfs/mkfs fs.img README $(UPROGS)

@@ -616,6 +616,20 @@ sys_ccreate(void)
   return kccreate(path);
 }
 
+int 
+sys_cfork(void)
+{
+  char path[MAXPATH];
+  int rv1 = argstr(0, path, MAXPATH);
+  // printf("cfork cont: %s\n", path);
+  if(rv1 < 0){
+    printf("sys_cfork: cannot get contaienr path\n");
+    return -1;
+  }
+
+  return kcfork(path);
+}
+
 // start container with vc
 uint64
 sys_cstart(void)
@@ -623,16 +637,23 @@ sys_cstart(void)
   char contname[MAXPATH], vcname[MAXPATH];
   int rv1 = argstr(0, contname, MAXPATH);
   int rv2 = argstr(1, vcname, MAXPATH);
+  // printf("container : %s\n", contname);
+  // printf("vc name: %s\n", vcname);
   if(rv1 < 0 || rv2 <0){
     printf("sys_cstart: argstr path error\n");
     return -1;
   }
-  int fd;
-  struct file *f;
-  int rv3 = argfd(2, &fd, &f);
-  if(rv3 < 0){
-    printf("sys_cstart: read fd error\n");
+  return kcstart(contname, vcname);
+}
+
+uint64
+sys_cstop(void)
+{
+  char contname[MAXPATH];
+  int rv1 = argstr(0, contname, MAXPATH);
+  if(rv1 < 0){
+    printf("sys_cstart: argstr path error\n");
     return -1;
   }
-  return kcstart(contname, vcname, f);
+  return kcstop(contname);
 }

@@ -48,8 +48,9 @@ int atoi(const char*);
 
 //container.c
 int ccreate(char *);
-// int cstart(char *);
-// int cstop(char *);
+int cfork(char*);
+int cstart(char *, char*);
+int cstop(char *);
 // int cpause(char *);
 // int cresume(char *);
 // int cinfo(struct cinfo *);
