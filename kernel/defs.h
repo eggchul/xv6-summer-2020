@@ -119,6 +119,10 @@ int             ksuspend(int, int, struct file *f);
 int             kresume(char*);
 int             containerkillwithpid(struct container *, int);
 int             containerkillall(struct container *);
+int             totalusedproc(void);
+uint64          totalusedmem(void);
+void            resumeprocforcontainer(struct container *);
+void            pauseprocforcontainer(struct container *);
 
 // container.c
 void            cinit(void);
@@ -138,6 +142,9 @@ int             updatecontdsk(uint64 dskchanged, struct container *c);
 int             updatecontmem(uint64 memchanged, struct container *c);
 int             updatecontproc(int procchange, struct container *c);
 struct container* getnextconttosched();
+int             kcfreemem(void);
+int             kcdf(void);
+
 // swtch.S
 void            swtch(struct context*, struct context*);
 

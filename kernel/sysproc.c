@@ -150,3 +150,27 @@ sys_psinfo(void)
   }
   return kpinfo(info_p);
 }
+
+uint64
+sys_cinfo(void)
+{
+  uint64 info_c;
+  int rv = argaddr(0, &info_c);
+  if(rv<0){
+    printf("Error: read in argument failed\n");
+    return -1;
+  }
+  return continfo(info_c);
+}
+
+uint64
+sys_df(void)
+{
+  return kcdf();
+}
+
+uint64
+sys_cfree(void)
+{
+  return kcfreemem();
+}

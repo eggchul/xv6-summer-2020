@@ -60,6 +60,7 @@ main(int argc, char *argv[]){
         printf("container %s is created\n",argv[1]);
     }else {
         printf("create container failed\n");
+        unlink(argv[1]);
     }
     exit(0);
 }

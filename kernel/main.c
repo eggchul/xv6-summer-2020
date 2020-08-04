@@ -29,7 +29,7 @@ main()
     fileinit();      // file table
     virtio_disk_init(); // emulated hard disk
     userinit();      // first user process
-    printf("userinit ok\n");
+    // printf("userinit ok\n");
     __sync_synchronize();
     started = 1;
   } else {

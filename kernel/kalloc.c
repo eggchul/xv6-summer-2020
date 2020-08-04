@@ -79,6 +79,13 @@ kalloc(void)
   release(&kmem.lock);
   }
 
+  // struct container *c = myproc()->cont;
+  // if(updatecontmem(PGSIZE, c) < 0){
+  //   printf("Not enough memory in container \n");
+  //   kcstop(c->name);
+  //   exit(0);
+  // }
+
   if(r){
     memset((char*)r, 5, PGSIZE); // fill with junk
   }

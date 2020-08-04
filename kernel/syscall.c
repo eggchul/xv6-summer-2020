@@ -114,9 +114,11 @@ extern uint64 sys_ccreate(void);
 extern uint64 sys_cstart(void);
 extern uint64 sys_cfork(void);
 extern uint64 sys_cstop(void);
-// extern uint64 sys_cpause(void);
-// extern uint64 sys_cresume(void);
-// extern uint64 sys_cinfo(void);
+extern uint64 sys_cpause(void);
+extern uint64 sys_cresume(void);
+extern uint64 sys_cinfo(void);
+extern uint64 sys_df(void);
+extern uint64 sys_cfree(void);
 
 static uint64 (*syscalls[])(void) = {
 [SYS_fork]    sys_fork,
@@ -149,9 +151,11 @@ static uint64 (*syscalls[])(void) = {
 [SYS_cstart]  sys_cstart,
 [SYS_cfork]   sys_cfork,
 [SYS_cstop]  sys_cstop,
-// [SYS_cpause]  sys_cpause,
-// [SYS_cresume]  sys_cresume,
-// [SYS_cinfo]  sys_cinfo,
+[SYS_cpause]  sys_cpause,
+[SYS_cresume]  sys_cresume,
+[SYS_cinfo]  sys_cinfo,
+[SYS_df]    sys_df,
+[SYS_cfree]  sys_cfree,
 };
 
 void

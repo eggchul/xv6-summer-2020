@@ -8,6 +8,7 @@
 #include "resumable.h"
 #include "proc.h"
 
+#define ROOTCONT 0
 struct container *root_container;
 struct spinlock cid_lock;
 void acquirecidlock(void) { acquire(&cid_lock); }
@@ -61,7 +62,7 @@ name2cont(char* name)
 
 	for (i = 0; i < NCONT; i++) {
 		c = &cont[i];
-		printf("cont name: %s, t name: %s\n", c->name, name);
+		// printf("cont name: %s, t name: %s\n", c->name, name);
 		if (strncmp(name, c->name, strlen(name)) == 0){
 			return c;
 		}
@@ -166,6 +167,7 @@ cinit(void)
 	for(i = 0; i < NCONT; i ++){
 		initlock(&cont[i].lock, "cont");
 		cont[i].cid = i;
+		cont[i].state = CUNUSED;
 	}
 	procinit();
 }
@@ -177,8 +179,9 @@ initrootcont(void)
 	struct container *c;
 	struct inode *rootdir;
 
-	if ((c = alloccont()) == 0) 
-		panic("Can't alloc init container.");
+	// if ((c = alloccont()) == 0) 
+	// 	panic("Can't alloc init container.");
+	c = &cont[ROOTCONT];
 	printf("done initing root container\n");
 	if ((rootdir = namei("/")) == 0)
 		panic("Can't set '/' as root container's rootdir");
@@ -190,7 +193,7 @@ initrootcont(void)
 	c->state = CRUNNABLE;	
 	c->rootdir = idup(rootdir);
     c->isroot = 1; // this is the root container
-    c->nextproc = 1;
+    c->nextlocalpid = 1;
 	c->ticks = 0;
 	safestrcpy(c->name, "rootcont", sizeof(c->name));	
 	release(&c->lock);
@@ -215,9 +218,6 @@ kcfork(char* name)
 	if ((c = name2cont(name)) == 0){
 		printf("Error: cfork, cannot find container %s\n", name);
 		return -1;
-	}
-	if(updatecontproc(1, c)<0){
-		return kcstop(c->name);
 	}
 	return fork(c);
 }
@@ -247,11 +247,14 @@ kccreate(char *name){
 	c->max_proc = NPROC/NCONT;
 	c->max_sz = MAX_CMEM;
 	c->max_dsk = MAX_CDISK;
+	c->used_dsk = 0;
+	c->used_mem = 0;
+	c->used_proc = 0;
 	c->rootdir = rootdir;
 	strncpy(c->name, name, 16);
 	printf("cont name %s\n",c->name);
 	c->state = !CUNUSED;	
-	c->nextproc = 1;
+	c->nextlocalpid = 1;
 	c->isroot = 0;
 	release(&c->lock);	
 
@@ -302,6 +305,7 @@ kcpause(char* name)
 	}
 	acquire(&c->lock);
 	c->state = CPAUSED;
+	pauseprocforcontainer(c);
 	release(&c->lock);
 	return 1;
 }
@@ -344,7 +348,7 @@ freecontainer(struct container *c)
 	c->max_sz = 0;
 	c->max_proc = 0;
 	c->rootdir = 0;
-	c->nextproc = 0;
+	c->nextlocalpid = 0;
 	c->used_dsk = 0;
 	c->used_mem = 0;
 	c->used_proc = 0;
@@ -371,7 +375,9 @@ kcresume(char* name)
 
 	acquire(&c->lock);
 	c->state = CRUNNABLE;
+	resumeprocforcontainer(c);
 	release(&c->lock);
+	
 	return 1;
 }
 
@@ -389,27 +395,108 @@ The execution statistics and percent of CPU consumed by each process and each co
 int
 continfo(uint64 info_c)
 {
-  struct container *c;
-  int isroot = myproc()->cont->isroot;
+  struct container *c = myproc()->cont;
+  if(c->isroot != 1){
+	  printf("Only root container can execute cinfo\n");
+	  return -1;
+  }
+  struct continfo cinfoobj;
+  struct cinfo* cinfotable = cinfoobj.conts;
+  int i;
+  uint64 totalmem = 0;
+  uint64 totaldisk = 0;
+  int totalproc = 0;
 
-  for(c = cont; c < &cont[NCONT]; c++) {
-    if(isroot){
-      acquire(&c->lock);
-
-      release(&c->lock);
-    }else{
-      acquire(&c->lock);
-
-      release(&c->lock);
-    }
-
+  for(i = 0; i < NCONT; i ++) {
+	strncpy(cinfotable[i].cname, cont[i].name, 16);
+	cinfotable[i].max_dsk = cont[i].max_dsk;
+	cinfotable[i].max_sz = cont[i].max_sz;
+	cinfotable[i].max_proc = cont[i].max_proc;
+	cinfotable[i].used_dsk = cont[i].used_dsk;
+	cinfotable[i].used_mem = cont[i].used_mem;
+	cinfotable[i].used_proc = cont[i].used_proc;
+	// count for root container
+	totalmem = cont[i].used_mem + totalmem;
+	totaldisk = cont[i].used_dsk + totaldisk;
+	totalproc = cont[i].used_proc + totalproc;
   }
 
-  if(isroot){
-    return 6;
-  }else{
-    return 0;
-  }
+  //assign value for root
+  cinfotable[ROOTCONT].max_dsk = cont[ROOTCONT].max_dsk;
+  cinfotable[ROOTCONT].max_sz = cont[ROOTCONT].max_sz;
+  cinfotable[ROOTCONT].max_proc = cont[ROOTCONT].max_proc;
+  cinfotable[ROOTCONT].used_proc = totalusedproc();
+  cinfotable[ROOTCONT].used_mem = totalusedmem();
+  cinfotable[ROOTCONT].used_dsk = totaldisk + cont[ROOTCONT].used_dsk;
+  copyout(myproc()->pagetable, info_c, (void *) &cinfoobj, sizeof(struct continfo));
+  return 1;
 }
 
+/*
+(free) A free command that show the available and used memory
+In a container, it should only show the available and used memory within a container
+In the root container, it should show all available and used memory
+(df) Disk space usage
+In a container, it should show only the total disk space a disk space used by the container
+In the root container it should show the total disk space available and used
+*/
+
+int
+kcdf(void)
+{
+	struct container *c = myproc()->cont;
+	
+	if(c->isroot){
+		int i;
+  		uint64 totaldisk = 0;
+		uint64 freedsk = 0;
+		for(i = 1; i < NCONT; i ++) {
+			printf("Container: %s\n", cont[i].name);
+			freedsk = cont[i].max_dsk - cont[i].used_dsk;
+			printf("Disk: used %d, avaliable %d\n", cont[i].used_dsk, freedsk);
+			// count for root container
+			totaldisk = cont[i].used_dsk + totaldisk;
+		}
+		// print root container info
+		printf("Container: %s\n", cont[ROOTCONT].name);
+		//need to redo calculation
+		freedsk = cont[ROOTCONT].max_dsk - cont[ROOTCONT].used_dsk - totaldisk;
+		printf("Disk: used %d, avaliable %d\n", cont[ROOTCONT].used_dsk, freedsk);
+		return 1;
+	}else{
+		printf("Container: %s\n", c->name);
+		uint64 freedsk = c->max_dsk - c->used_dsk;
+		printf("Disk: used %d, avaliable %d\n", c->used_dsk, freedsk);
+		return 0;
+	}
+}
+
+int
+kcfreemem(void)
+{
+	struct container *c = myproc()->cont;
+	uint64 freemem = 0;
+	if(c->isroot){
+		int i;
+  		uint64 totalmem = 0;
+		for(i = 1; i < NCONT; i ++) {
+			printf("Container: %s\n", cont[i].name);
+			freemem = c->max_sz - c->used_mem;
+			printf("Mem: used %d, avaliable %d\n", c->used_mem, freemem);
+			// count for root container
+			totalmem = cont[i].used_dsk + totalmem;
+		}
+		// print root container info
+		printf("Container: %s\n", cont[ROOTCONT].name);
+		//need to redo calculation
+		freemem = cont[ROOTCONT].max_dsk - cont[ROOTCONT].used_dsk - totalmem;
+		printf("Mem: used %d, avaliable %d\n", cont[ROOTCONT].used_mem, freemem);
+		return 1;
+	}else {
+		printf("Container: %s\n", c->name);
+		freemem = c->max_sz - c->used_mem;
+		printf("Mem: used %d, avaliable %d\n", c->used_mem, freemem);
+		return 0;
+	}
+}
 

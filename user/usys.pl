@@ -45,7 +45,9 @@ entry("ccreate");
 entry("cstart");
 entry("cfork");
 entry("cstop");
-# entry("cpause");
-# entry("cresume");
-# entry("cinfo");
+entry("cpause");
+entry("cresume");
+entry("cinfo");
+entry("df");
+entry("cfree");
 

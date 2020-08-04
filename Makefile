@@ -142,6 +142,12 @@ UPROGS=\
 	$U/_vctest\
 	$U/_ccreate\
 	$U/_cstart\
+	$U/_cstop\
+	$U/_cpause\
+	$U/_cresume\
+	$U/_cinfo\
+	$U/_df\
+	$U/_free\
 
 fs.img: mkfs/mkfs README $(UPROGS)
 	mkfs/mkfs fs.img README $(UPROGS)

@@ -657,3 +657,27 @@ sys_cstop(void)
   }
   return kcstop(contname);
 }
+
+uint64
+sys_cpause(void)
+{
+  char contname[MAXPATH];
+  int rv1 = argstr(0, contname, MAXPATH);
+  if(rv1 < 0){
+    printf("sys_cstart: argstr path error\n");
+    return -1;
+  }
+  return kcpause(contname);
+}
+
+uint64
+sys_cresume(void)
+{
+  char contname[MAXPATH];
+  int rv1 = argstr(0, contname, MAXPATH);
+  if(rv1 < 0){
+    printf("sys_cstart: argstr path error\n");
+    return -1;
+  }
+  return kcresume(contname);
+}

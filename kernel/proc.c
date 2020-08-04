@@ -89,9 +89,15 @@ allocpid() {
 int
 alloclocalpid(struct container *c) {
   int local_pid;
+  if(updatecontproc(1, c) < 0){
+		kcstop(c->name);
+    exit(0);
+	}
   acquirecidlock();
-  local_pid = c->used_proc;
+  local_pid = c->nextlocalpid;
+  c->nextlocalpid ++;
   releasecidlock();
+
   return local_pid;
 }
 
@@ -103,7 +109,6 @@ struct proc*
 allocproc(struct container *c)
 {
   struct proc *p;
-  acquire(&c->lock);
   for(p = proc; p < &proc[NPROC]; p++) {
     acquire(&p->lock);
     if(p->state == UNUSED) {
@@ -112,7 +117,6 @@ allocproc(struct container *c)
       release(&p->lock);
     }
   }
-  release(&c->lock);
   return 0;
 
 found:
@@ -126,12 +130,6 @@ found:
   // Allocate a trapframe page.
   if((p->tf = (struct trapframe *)kalloc()) == 0){
     release(&p->lock);
-    release(&c->lock);
-    if(c->isroot != 1 && updatecontmem(PGSIZE, c) < 0){
-      printf("Not enough memory in container \n");
-      kcstop(c->name);
-      exit(0);
-    }
     return 0;
   }
 
@@ -143,7 +141,12 @@ found:
   memset(&p->context, 0, sizeof p->context);
   p->context.ra = (uint64)forkret;
   p->context.sp = p->kstack + PGSIZE;
-  release(&c->lock);
+
+  if(updatecontmem(p->sz, c) < 0){
+    printf("Not enough memory in container \n");
+    kcstop(c->name);
+    exit(0);
+  }
   return p;
 }
 
@@ -634,12 +637,14 @@ kill(int pid)
   struct proc *p;
   struct container *c = myproc()->cont;
   if(c->isroot != 1){
+    //kill in current(non root) container
     return containerkillwithpid(c, pid);
   }
+  // kill in root container
   for(p = proc; p < &proc[NPROC]; p++){
     acquire(&p->lock);
     if(p->pid == pid){
-      if(p->cont->isroot != 1){ // process is not in current container
+      if(p->cont->isroot != 1){ // process is not in root container
         printf("Current container has no access to this pid\n");
         return -1;
       }
@@ -648,6 +653,7 @@ kill(int pid)
         // Wake process from sleep().
         p->state = RUNNABLE;
       }
+      updatecontproc(-1, c);
       release(&p->lock);
       return 0;
     }
@@ -918,7 +924,6 @@ containerkillwithpid(struct container *c, int local_pid)
   struct proc *p;
   for(p = proc; p < &proc[NPROC]; p++){
     if(p->cont == c){
-      acquire(&c->lock);
       acquire(&p->lock);
       if(p->local_pid == local_pid){
         p->killed = 1;
@@ -927,23 +932,22 @@ containerkillwithpid(struct container *c, int local_pid)
           p->state = RUNNABLE;
         }
         release(&p->lock);
-        release(&c->lock);
+        updatecontproc(-1, c);
         return 0;
       }
       release(&p->lock);
-      release(&c->lock);
     }
   }
   return -1;
 }
 
+//helper method to support container.c/kcstop
 int
 containerkillall(struct container *c)
 {
   struct proc *p;
   for(p = proc; p < &proc[NPROC]; p++){
     if(p->cont == c){
-      acquire(&c->lock);
       acquire(&p->lock);
       p->killed = 1;
       if(p->state == SLEEPING || p->state == SUSPENDED){
@@ -951,8 +955,59 @@ containerkillall(struct container *c)
         p->state = RUNNABLE;
       }
       release(&p->lock);
-      release(&c->lock);
     }
   }
   return -1;
+}
+
+int
+totalusedproc(void)// count the number of process
+{
+  struct proc *p;
+  int count = 0;
+  for(p = proc; p < &proc[NPROC]; p++) {
+    acquire(&p->lock);
+    if(p->state != UNUSED) {
+      count ++;
+    }
+    release(&p->lock);
+  }
+  return count;
+}
+
+uint64
+totalusedmem(void)// count the total of used memory
+{
+  struct proc *p;
+  uint64 totalmem = 0;
+  for(p = proc; p < &proc[NPROC]; p++) {
+    acquire(&p->lock);
+    totalmem += p->sz;
+    release(&p->lock);
+  }
+  return totalmem;
+}
+
+void
+pauseprocforcontainer(struct container *c)
+{
+  struct proc *p;
+
+  for(p = proc; p < &proc[NPROC]; p++){
+    if(p->cont->cid == c->cid && p->state != UNUSED){
+      p->state = SUSPENDED;
+    }
+  }
+}
+
+void
+resumeprocforcontainer(struct container *c)
+{
+  struct proc *p;
+
+  for(p = proc; p < &proc[NPROC]; p++){
+    if(p->cont->cid == c->cid && p->state == SUSPENDED){
+      p->state = RUNNABLE;
+    }
+  }
 }

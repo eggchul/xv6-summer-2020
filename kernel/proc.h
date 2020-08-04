@@ -118,8 +118,7 @@ struct container {
   struct spinlock lock;
   //c->lock need to be held
   enum contstate state;		     // State of container
-  int nextproc;				         // Next local proc id to sched 
-  // struct proc *ptable;		     // Table of processes owned by container
+  int nextlocalpid;            // next local pid to assign  
   int cid;					           // Container ID
   int used_proc;					     // Used processes
 	uint64 used_mem;       			 // Used pages of memory
