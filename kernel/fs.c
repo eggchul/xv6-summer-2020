@@ -505,12 +505,12 @@ writei(struct inode *ip, int user_src, uint64 src, uint off, uint n)
     brelse(bp);
   }
 
-  struct container *c = myproc()->cont;
-  if(updatecontdsk(tot * BSIZE, c) < 0){
-    printf("Not enough disk space in container\n");
-    kcstop(c->name);
-    exit(0);
-  }
+  // struct container *c = myproc()->cont;
+  // if(updatecontdsk(tot * BSIZE, c) < 0){
+  //   printf("Not enough disk space in container\n");
+  //   kcstop(c->name);
+  //   exit(0);
+  // }
 
   if(n > 0){
     if(off > ip->size)
@@ -638,17 +638,18 @@ namex(char *path, int nameiparent, char *name)
 {
   struct inode *ip, *next;
 
-  if(*path == '/')
+  if(*path == '/' && myproc() == 0){
     ip = iget(ROOTDEV, ROOTINO);
-  else
+  }else if(*path == '/'){
+    ip = idup(myproc()->cont->rootdir);
+  }else{
     ip = idup(myproc()->cwd);
-
-  // struct container *c = myproc()->cont;
-  // //if in container and current dir is the rootdir of container, then "cd .." should not go to '/'
-  // if(strncmp(path, "..",2) == 0  && c->rootdir->inum == ip->inum){
-  //   return ip;
-  // }
-
+  }
+  
+  if(strncmp(path, "..",2) == 0 && myproc() != 0){
+    if(!myproc()->cont->isroot)
+        return ip;
+  }
   while((path = skipelem(path, name)) != 0){
     ilock(ip);
     if(ip->type != T_DIR){
