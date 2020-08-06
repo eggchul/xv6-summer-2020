@@ -89,10 +89,6 @@ allocpid() {
 int
 alloclocalpid(struct container *c) {
   int local_pid;
-  if(updatecontproc(1, c) < 0){
-		kcstop(c->name);
-    exit(0);
-	}
   acquirecidlock();
   local_pid = c->nextlocalpid;
   c->nextlocalpid ++;
@@ -141,12 +137,39 @@ found:
   memset(&p->context, 0, sizeof p->context);
   p->context.ra = (uint64)forkret;
   p->context.sp = p->kstack + PGSIZE;
+  p->ticks = 0;
+  return p;
+}
 
-  if(updatecontmem(p->sz, c) < 0){
-    printf("Not enough memory in container \n");
-    kcstop(c->name);
-    exit(0);
+struct proc*
+getlessticksrunnableproc(struct container *c){
+  struct proc *p;
+  int less = -1;
+  int tick = 0;
+  int i;
+  for(i = 0; i < NPROC; i ++){
+    p = &proc[i];
+    acquire(&p->lock);
+    if(p->cont == c && p->state == RUNNABLE){
+      if(less == -1){
+        //start iterating the list set the first process's tick as the least
+        tick = p->ticks;
+        less = i;
+      }else{
+        if(p->ticks < tick){
+          // found less ticked process in the target container, update
+          tick = p->ticks;
+          less = i;
+        }
+      }
+    }
+    release(&p->lock);
   }
+  if(less < 0){
+    printf("found no less tick proc, need to check system\n");
+    return 0;
+  }
+  p = &proc[less];
   return p;
 }
 
@@ -170,6 +193,11 @@ freeproc(struct proc *p)
   p->killed = 0;
   p->xstate = 0;
   p->state = UNUSED;
+  if(p!= 0){
+    updatecontproc(-1,p->cont);
+  }
+  p->cont = 0;
+  p->ticks = 0;
 }
 
 // Create a page table for a given process,
@@ -219,7 +247,7 @@ uchar initcode[] = {
   0x00, 0x00, 0x00
 };
 
-// Set up first user process.
+// Set up first user process. // this wil be in root container
 void
 userprocinit(struct container *c)
 {
@@ -241,7 +269,10 @@ userprocinit(struct container *c)
   p->cwd = idup(c->rootdir);
   
   p->state = RUNNABLE;
-  
+
+  //update the root container, we do not check if exceed in root since we assume it is unlimited so far, but need to modify in future
+  p->cont = c;
+
   release(&p->lock);
 }
 
@@ -275,7 +306,7 @@ fork(struct container * c)
   struct container *cont;
 	struct inode *cwd;
   struct proc *p = myproc();
-  if(c == 0){
+  if(c == 0){// from root
     cwd = p->cwd;
 		cont = p->cont;
 		parent = p;
@@ -318,8 +349,15 @@ fork(struct container * c)
   pid = np->pid;
 
   np->state = RUNNABLE;
-
   release(&np->lock);
+
+  if(pid > 0){
+    if(updatecontproc(1, np->cont) < 0){
+      printf("Too many process in container \n");
+      kcstop(np->cont->name);
+      exit(0);
+    }
+  }
 
   return pid;
 }
@@ -653,7 +691,7 @@ kill(int pid)
         // Wake process from sleep().
         p->state = RUNNABLE;
       }
-      updatecontproc(-1, c);
+      // updatecontproc(-1, c);
       release(&p->lock);
       return 0;
     }
@@ -932,7 +970,7 @@ containerkillwithpid(struct container *c, int local_pid)
           p->state = RUNNABLE;
         }
         release(&p->lock);
-        updatecontproc(-1, c);
+        // updatecontproc(-1, c);
         return 0;
       }
       release(&p->lock);
@@ -982,11 +1020,48 @@ totalusedmem(void)// count the total of used memory
   uint64 totalmem = 0;
   for(p = proc; p < &proc[NPROC]; p++) {
     acquire(&p->lock);
-    totalmem += p->sz;
+    if(p->state != UNUSED) {
+      totalmem += p->sz;
+    }
     release(&p->lock);
   }
   return totalmem;
 }
+
+int
+usedprocforcontainer(struct container *c)
+{
+  struct proc *p;
+  int count = 0;
+  for(p = proc; p < &proc[NPROC]; p++) {
+    if(p->cont == c){
+      acquire(&p->lock);
+      if(p->state != UNUSED) {
+        count ++;
+      }
+      release(&p->lock);
+    }
+  }
+  return count;
+}
+
+uint64
+usedmemforcontainer(struct container *c)// count the used memory
+{
+  struct proc *p;
+  uint64 totalmem = 0;
+  for(p = proc; p < &proc[NPROC]; p++) {
+    if(p->cont == c){
+      acquire(&p->lock);
+      if(p->state != UNUSED) {
+        totalmem += p->sz;
+      }
+      release(&p->lock);
+    }
+  }
+  return totalmem;
+}
+
 
 void
 pauseprocforcontainer(struct container *c)
@@ -994,7 +1069,7 @@ pauseprocforcontainer(struct container *c)
   struct proc *p;
 
   for(p = proc; p < &proc[NPROC]; p++){
-    if(p->cont->cid == c->cid && p->state != UNUSED){
+    if(p->cont == c && p->state != UNUSED){
       p->state = SUSPENDED;
     }
   }

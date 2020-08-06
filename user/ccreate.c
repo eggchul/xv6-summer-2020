@@ -6,36 +6,36 @@
 
 char buf[512];
 
-void
+int
 cp(char* dest, char* src)
 {
     int n;
-    int pathsize = strlen(dest) + strlen(src) + 2; // dst.len + '/' + src.len + \0
+    int pathsize = strlen(dest) + strlen(src) + 2; 
     char path[pathsize]; 
+    char buf[1024];
 
-    memmove(path, dest, strlen(dest));
-    memmove(path + strlen(dest), "/", 1);
-    memmove(path + strlen(dest) + 1, src, strlen(src));
-    memmove(path + strlen(src) + 1 + strlen(src), "\0", 1);
-    
+    strcpy(path, dest);
+    strcpy(&path[strlen(dest)], "/");
+    strcpy(&path[strlen(dest)+1], src);
+    strcpy(&path[strlen(dest)+1+strlen(src)], "\0");
+
     int srcfd = open(src, O_RDONLY);
     if(srcfd < 0){
         printf("cp:Failed to open src folder/file %s\n", src);
+        return -1;
     }
     int destfd = open(path, O_WRONLY|O_CREATE);
     if(destfd < 0){
         printf("cp:Failed to open dest folder/file %s\n", dest);
+        close(destfd);
+        return -1;
     }
-    while((n = read(srcfd, buf, sizeof(buf))) > 0) {
-        if (write(destfd, buf, n) != n) {
-        printf("cp: write error\n");
-        exit(1);
-        }
+    while((n = read(srcfd, buf, sizeof(buf))) != 0) {
+        write(destfd, buf, n);
     }
-    if(n < 0){
-        printf("cat: read error\n");
-        exit(1);
-    }
+    close(srcfd);
+    close(destfd);
+    return 1;
 }
 
 // create a container anad populate a container's file system
@@ -53,7 +53,10 @@ main(int argc, char *argv[]){
     // copy selected function file to dest file/dir
     int i;
     for(i = 2; i < argc; i++){
-        cp(argv[1],argv[i]);
+        int rv = cp(argv[1],argv[i]);
+        if(rv < 0){
+            printf("cp %s to %c failed\n", argv[i], argv[1]);
+        }
         //check if over disk size
     }
     if((ccreate(argv[1])) == 1){

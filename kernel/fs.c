@@ -505,13 +505,6 @@ writei(struct inode *ip, int user_src, uint64 src, uint off, uint n)
     brelse(bp);
   }
 
-  // struct container *c = myproc()->cont;
-  // if(updatecontdsk(tot * BSIZE, c) < 0){
-  //   printf("Not enough disk space in container\n");
-  //   kcstop(c->name);
-  //   exit(0);
-  // }
-
   if(n > 0){
     if(off > ip->size)
       ip->size = off;
@@ -637,19 +630,16 @@ static struct inode*
 namex(char *path, int nameiparent, char *name)
 {
   struct inode *ip, *next;
+  struct inode *rootip = iget(ROOTDEV, ROOTINO);
 
-  if(*path == '/' && myproc() == 0){
-    ip = iget(ROOTDEV, ROOTINO);
+  if(myproc() == 0){
+    ip = rootip;
   }else if(*path == '/'){
     ip = idup(myproc()->cont->rootdir);
   }else{
     ip = idup(myproc()->cwd);
   }
-  
-  if(strncmp(path, "..",2) == 0 && myproc() != 0){
-    if(!myproc()->cont->isroot)
-        return ip;
-  }
+
   while((path = skipelem(path, name)) != 0){
     ilock(ip);
     if(ip->type != T_DIR){
@@ -667,6 +657,10 @@ namex(char *path, int nameiparent, char *name)
     }
     iunlockput(ip);
 
+    // if the next dir is the root then we return the container's rootdir
+    if(!myproc()->cont->isroot && next->inum == rootip->inum){
+      return ip;
+    }
     ip = next;
   }
   if(nameiparent){
@@ -715,3 +709,4 @@ unusedblock(struct inode* ip)
   }
   printf("\nTotal free blocks = %d\n", countf);
 }
+

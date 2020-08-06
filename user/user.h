@@ -56,3 +56,6 @@ int cresume(char *);
 int cinfo(struct continfo *);
 int df(void);
 int cfree(void);
+int setmaxcmem(char*, int);
+int setmaxcdsk(char*, int);
+int setmaxcproc(char*, int);

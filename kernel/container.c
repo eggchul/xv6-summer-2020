@@ -8,7 +8,6 @@
 #include "resumable.h"
 #include "proc.h"
 
-#define ROOTCONT 0
 struct container *root_container;
 struct spinlock cid_lock;
 void acquirecidlock(void) { acquire(&cid_lock); }
@@ -84,6 +83,70 @@ name2cid(char* name)
 	return -1;// if no container found
 }
 
+// set new max disk space for non root containers
+int
+setmaxdsk(char * contname, uint64 newmax)
+{
+	struct container *c = name2cont(contname);
+	if(c == 0){
+		return -1;
+	}
+	if(c->isroot){
+		printf("Cannot set disk limit for root container\n");
+		exit(0);
+	}
+	if(newmax > c->max_dsk){
+		printf("assign max disk exceed system limit, will use default size\n");
+		return -1;
+	}else{
+		c->max_dsk = newmax;
+	}
+	return 1;
+}
+
+// set new max mem for non root container 
+int
+setmaxmem(char *contname, uint64 newmax)
+{
+	struct container *c = name2cont(contname);
+	if(c == 0){
+		return -1;
+	}
+	if(c->isroot){
+		printf("Cannot set mem limit for root container\n");
+		exit(0);
+	}
+	if(newmax > c->max_sz){
+		printf("assign max disk exceed system limit, will use default size\n");
+		return -1;
+	}else{
+		c->max_sz = newmax;
+	}
+	return 1;
+}
+
+// set new max proc for non root container 
+int
+setmaxproc(char *contname, int numproc)
+{
+	struct container *c = name2cont(contname);
+	if(c == 0){
+		return -1;
+	}
+	if(c->isroot){
+		printf("Cannot set proc limit for root container\n");
+		exit(0);
+	}
+	if(numproc > c->max_proc){
+		printf("assign max disk exceed system limit, will use default size\n");
+		return -1;
+	}else{
+		c->max_proc = numproc;
+	}
+	return 1;
+}
+
+
 int
 updatecontmem(uint64 memchanged, struct container *c)
 {
@@ -118,19 +181,21 @@ int
 updatecontproc(int procchange, struct container *c)
 {
 	acquire(&c->lock);
+	//printf("checking:: cont:%s, used:%d, free:%d\n", c->name, c->used_proc, c->max_proc-c->used_proc);
 	if(c->used_proc + procchange > c->max_proc){
 		printf("Container proc exceed\n");
 		release(&c->lock);
 		return -1;
 	}else{
 		c->used_proc = c->used_proc + procchange;
+		//printf("updated:: cont:%s, used:%d, free:%d\n", c->name, c->used_proc, c->max_proc-c->used_proc);
 		release(&c->lock);
 	}
 	return 1;
 }
 
 struct container*
-getnextconttosched()
+getnextconttosched(void)
 {
 	int i;
 	struct container *c = &cont[0];
@@ -158,23 +223,9 @@ ifvcavaliable(char* vcname){
 	return 1;
 }
 
-
-void
-cinit(void)
-{
-	initlock(&cid_lock, "nextcid");
-	int i;
-	for(i = 0; i < NCONT; i ++){
-		initlock(&cont[i].lock, "cont");
-		cont[i].cid = i;
-		cont[i].state = CUNUSED;
-	}
-	procinit();
-}
-
 //continit initialize the root container
 struct container*
-initrootcont(void)
+initrootcont()
 {
 	struct container *c;
 	struct inode *rootdir;
@@ -191,6 +242,9 @@ initrootcont(void)
 	c->max_sz = MAX_CMEM;
 	c->max_dsk = MAX_CDISK;	
 	c->state = CRUNNABLE;	
+	c->used_proc = 0;
+	c->used_mem = 0;
+	c->used_dsk = 0;
 	c->rootdir = idup(rootdir);
     c->isroot = 1; // this is the root container
     c->nextlocalpid = 1;
@@ -201,13 +255,27 @@ initrootcont(void)
 	return c;
 }
 
+
+void
+cinit(void)
+{
+	initlock(&cid_lock, "nextcid");
+	int i;
+	for(i = 0; i < NCONT; i ++){
+		initlock(&cont[i].lock, "cont");
+		cont[i].cid = i;
+		cont[i].state = CUNUSED;
+	}
+	initrootcont();
+	procinit();
+}
+
+
 // Set up first user process with container
 void
 userinit(void)
 {
-	struct container *root;
-	root = initrootcont();
-	userprocinit(root);
+	userprocinit(&cont[ROOTCONT]);
 }
 
 //fork process to target container by cid
@@ -245,8 +313,8 @@ kccreate(char *name){
 	
 	acquire(&c->lock);
 	c->max_proc = NPROC/NCONT;
-	c->max_sz = MAX_CMEM;
-	c->max_dsk = MAX_CDISK;
+	c->max_sz = MAX_CMEM/NCONT;
+	c->max_dsk = MAX_CDISK/NCONT;
 	c->used_dsk = 0;
 	c->used_mem = 0;
 	c->used_proc = 0;
@@ -280,7 +348,7 @@ int kcstart(char* name, char* vcname)
 	printf("container found\n");
 	acquire(&c->lock);
 	strncpy(c->vc_name, vcname, 16);
-	c->state = CRUNNING;
+	c->state = CRUNNABLE;
 	release(&c->lock);
 	return 1;
 }
@@ -325,7 +393,7 @@ kcstop(char* name)
 		return -1;
 	}
 	
-	if (c->state != CRUNNABLE && c->state != CPAUSED){
+	if (c->state != CRUNNABLE || c->state != CPAUSED){
 		printf("Error: kcstop, cannot kill a not running container\n");
 		return -1;
 	}
@@ -413,7 +481,8 @@ continfo(uint64 info_c)
 	cinfotable[i].max_sz = cont[i].max_sz;
 	cinfotable[i].max_proc = cont[i].max_proc;
 	cinfotable[i].used_dsk = cont[i].used_dsk;
-	cinfotable[i].used_mem = cont[i].used_mem;
+	cinfotable[i].used_mem = usedmemforcontainer(&cont[i]);
+	printf("cont: %s, cont[i].usedmem: %d, usedmem(cont[i]): %d\n", cont[i].name, cont[i].used_mem, cinfotable[i].used_mem);
 	cinfotable[i].used_proc = cont[i].used_proc;
 	// count for root container
 	totalmem = cont[i].used_mem + totalmem;
@@ -481,8 +550,9 @@ kcfreemem(void)
   		uint64 totalmem = 0;
 		for(i = 1; i < NCONT; i ++) {
 			printf("Container: %s\n", cont[i].name);
-			freemem = c->max_sz - c->used_mem;
-			printf("Mem: used %d, avaliable %d\n", c->used_mem, freemem);
+			uint64 usedmem  = usedmemforcontainer(&cont[i]);
+			freemem = c->max_sz - usedmem;
+			printf("Mem: used %d, avaliable %d\n", usedmem, freemem);
 			// count for root container
 			totalmem = cont[i].used_dsk + totalmem;
 		}
@@ -494,9 +564,9 @@ kcfreemem(void)
 		return 1;
 	}else {
 		printf("Container: %s\n", c->name);
-		freemem = c->max_sz - c->used_mem;
-		printf("Mem: used %d, avaliable %d\n", c->used_mem, freemem);
+		uint64 usedmem  = usedmemforcontainer(c);
+		freemem = c->max_sz - usedmem;
+		printf("Mem: used %d, avaliable %d\n", usedmem, freemem);
 		return 0;
 	}
 }
-

@@ -8,7 +8,7 @@ int
 main(int argc, char *argv[]){
     if(argc < 4){
         printf("too few arguments\n");
-        printf("usage: cstart <virtual console> <container name> <init program>\n");
+        printf("usage: cstart <virtual console> <container name> <init program> [max mem] [max disk] [max proc]\n");
     }
 
     int vcfd = open(argv[1], O_RDWR);
@@ -16,6 +16,20 @@ main(int argc, char *argv[]){
         printf("cstart: Could not find vc\n");
         exit(0);
     }
+
+    // int newmem = atoi(argv[4]);
+    // if(newmem != 0){
+    //     setmaxcmem(argv[2], newmem);
+    // }
+    // int newdisk = atoi(argv[5]);
+    // if(newdisk != 0){
+    //     setmaxcdsk(argv[2], newdisk);
+    // }
+    // int numproc = atoi(argv[6]);
+    // if(numproc != 0){
+    //     setmaxcproc(argv[2], numproc);
+    // }
+
 
     /* fork a child and exec argv[2] */
     int id = cfork(argv[2]);

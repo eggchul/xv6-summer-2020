@@ -123,6 +123,8 @@ int             totalusedproc(void);
 uint64          totalusedmem(void);
 void            resumeprocforcontainer(struct container *);
 void            pauseprocforcontainer(struct container *);
+int             usedprocforcontainer(struct container *c);
+uint64          usedmemforcontainer(struct container *c);
 
 // container.c
 void            cinit(void);
@@ -131,19 +133,24 @@ void            acquirecidlock(void);
 void            releasecidlock(void);
 int             kccreate(char *);
 int             kcstart(char *, char *);
-int             kcpause(char* name);
-int             kcstop(char* name);
+int             kcpause(char*);
+int             kcstop(char*);
 int             freecontainer(struct container *c);
-int             kcresume(char* name);
-int             continfo(uint64 info_c);
-int             name2cid(char* name);
+int             kcresume(char*);
+int             continfo(uint64);
+int             name2cid(char*);
+struct container*   cid2cont(int);
+struct container*   name2cont(char*);
 int             kcfork(char*);
-int             updatecontdsk(uint64 dskchanged, struct container *c);
-int             updatecontmem(uint64 memchanged, struct container *c);
-int             updatecontproc(int procchange, struct container *c);
-struct container* getnextconttosched();
+int             updatecontdsk(uint64, struct container *);
+int             updatecontmem(uint64, struct container *);
+int             updatecontproc(int, struct container *);
+struct container* getnextconttosched(void);
 int             kcfreemem(void);
 int             kcdf(void);
+int             setmaxdsk(char *, uint64);
+int             setmaxmem(char *, uint64);
+int             setmaxproc(char *, int);
 
 // swtch.S
 void            swtch(struct context*, struct context*);

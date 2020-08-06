@@ -174,3 +174,39 @@ sys_cfree(void)
 {
   return kcfreemem();
 }
+
+uint64
+sys_setmaxcmem(void)
+{
+  char path[MAXPATH];
+  int mem;
+  if((argstr(0, path, MAXPATH)) < 0 || argint(1, &mem) < 0) {
+    printf("sys_setmaxcmem() read filename failed\n");
+    return -1;
+  }
+  return setmaxmem(path, (uint64) mem);
+}
+
+uint64
+sys_setmaxcdsk(void)
+{
+  char path[MAXPATH];
+  int dsk;
+  if((argstr(0, path, MAXPATH)) < 0 || argint(1, &dsk) < 0) {
+    printf("sys_setmamcdsk() read filename failed\n");
+    return -1;
+  }
+  return setmaxdsk(path, (uint64)dsk);
+}
+
+uint64
+sys_setmaxcproc(void)
+{
+  char path[MAXPATH];
+  int numproc;
+  if((argstr(0, path, MAXPATH)) < 0 || argint(1, &numproc) < 0) {
+    printf("sys_setmaxcproc() read filename failed\n");
+    return -1;
+  }
+  return setmaxproc(path, numproc);
+}

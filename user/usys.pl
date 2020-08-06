@@ -50,4 +50,6 @@ entry("cresume");
 entry("cinfo");
 entry("df");
 entry("cfree");
-
+entry("setmaxcmem");
+entry("setmaxcdsk");
+entry("setmaxcproc");

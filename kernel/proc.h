@@ -111,6 +111,7 @@ struct proc {
 
   // container id that the process belongs to
   struct container *cont;      // Container id
+  int ticks;                   // counter of ticks
 };
 
 enum contstate { CUNUSED, CRUNNABLE, CRUNNING, CPAUSED, CSTOPPED};

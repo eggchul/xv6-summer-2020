@@ -34,3 +34,6 @@
 #define SYS_cinfo    33
 #define SYS_df       34
 #define SYS_cfree     35
+#define SYS_setmaxcmem 36
+#define SYS_setmaxcdsk 37
+#define SYS_setmaxcproc 38

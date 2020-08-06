@@ -13,5 +13,6 @@ main(int argc, char* argv[])
     if(rv <0){
         printf("stop container %s failed\n", argv[1]);
     }
+    unlink(argv[1]);
     exit(0);
 }
