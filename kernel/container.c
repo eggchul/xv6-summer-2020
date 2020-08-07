@@ -150,14 +150,11 @@ setmaxproc(char *contname, int numproc)
 int
 updatecontmem(uint64 memchanged, struct container *c)
 {
-	acquire(&c->lock);
 	if(c->used_mem + memchanged > c->max_sz){
 		printf("Container memory exceed\n");
-		release(&c->lock);
 		return -1;
 	} else {
 		c->used_mem = c->used_mem + memchanged;
-		release(&c->lock);
 	}
 	return 1;
 }
@@ -165,14 +162,11 @@ updatecontmem(uint64 memchanged, struct container *c)
 int 
 updatecontdsk(uint64 dskchanged, struct container *c)
 {
-	acquire(&c->lock);
 	if(c->used_dsk + dskchanged > c->max_dsk){
 		printf("Container disk exceed\n");
-		release(&c->lock);
 		return -1;
 	}else{
 		c->used_dsk = c->used_dsk + dskchanged;
-		release(&c->lock);
 	}
 	return 1;
 }
@@ -180,16 +174,13 @@ updatecontdsk(uint64 dskchanged, struct container *c)
 int
 updatecontproc(int procchange, struct container *c)
 {
-	acquire(&c->lock);
 	//printf("checking:: cont:%s, used:%d, free:%d\n", c->name, c->used_proc, c->max_proc-c->used_proc);
 	if(c->used_proc + procchange > c->max_proc){
 		printf("Container proc exceed\n");
-		release(&c->lock);
 		return -1;
 	}else{
 		c->used_proc = c->used_proc + procchange;
 		//printf("updated:: cont:%s, used:%d, free:%d\n", c->name, c->used_proc, c->max_proc-c->used_proc);
-		release(&c->lock);
 	}
 	return 1;
 }
@@ -320,8 +311,7 @@ kccreate(char *name){
 	c->used_proc = 0;
 	c->rootdir = rootdir;
 	strncpy(c->name, name, 16);
-	printf("cont name %s\n",c->name);
-	c->state = !CUNUSED;	
+	c->state = CINITED;	
 	c->nextlocalpid = 1;
 	c->isroot = 0;
 	release(&c->lock);	
@@ -330,22 +320,22 @@ kccreate(char *name){
 }
 
 //contstart take in container name and vc name
-int kcstart(char* name, char* vcname) 
+int kcstart(char* name, char* vcname, uint64 disksize) 
 {
 	struct container *c;
 	if(ifvcavaliable(vcname) < 0){
 		return -1;
 	}
 	c = name2cont(name);
-	if(c->state != CRUNNABLE){
-		printf("Error: kcstart, container %s is started\n", name);
+	if(c->state != CINITED){
+		printf("No avaliable container named %s is found\n", name);
 		return -1;
 	}
 	if(c == 0){
 		printf("Error: kcstart, no container %s found\n", name);
 		return -1;
 	}
-	printf("container found\n");
+	updatecontdsk(disksize, c);
 	acquire(&c->lock);
 	strncpy(c->vc_name, vcname, 16);
 	c->state = CRUNNABLE;
@@ -570,3 +560,4 @@ kcfreemem(void)
 		return 0;
 	}
 }
+

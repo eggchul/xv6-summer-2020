@@ -635,15 +635,16 @@ uint64
 sys_cstart(void)
 {
   char contname[MAXPATH], vcname[MAXPATH];
+  int disksize;
   int rv1 = argstr(0, contname, MAXPATH);
   int rv2 = argstr(1, vcname, MAXPATH);
-  // printf("container : %s\n", contname);
-  // printf("vc name: %s\n", vcname);
-  if(rv1 < 0 || rv2 <0){
-    printf("sys_cstart: argstr path error\n");
+  int rv3 = argint(2, &disksize);
+
+  if(rv1 < 0 || rv2 <0 || rv3 < 0){
+    printf("sys_cstart: passing argument error\n");
     return -1;
   }
-  return kcstart(contname, vcname);
+  return kcstart(contname, vcname, (uint64)disksize);
 }
 
 uint64

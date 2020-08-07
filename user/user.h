@@ -49,7 +49,7 @@ int atoi(const char*);
 //container.c
 int ccreate(char *);
 int cfork(char*);
-int cstart(char *, char*);
+int cstart(char *, char*, int);
 int cstop(char *);
 int cpause(char *);
 int cresume(char *);

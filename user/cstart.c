@@ -5,6 +5,64 @@
 #include "kernel/fs.h"
 
 int
+containerinitdisk(char* path)
+{
+  char buf[512], *p;
+  int fd;
+  struct dirent de;
+  struct stat st;
+  int size = 0;
+  char curdir[strlen(path)+3];
+  char updir[strlen(path)+4];
+  strcpy(curdir,path);
+  strcpy(&curdir[strlen(path)], "/.\0");
+  strcpy(updir,path);
+  strcpy(&updir[strlen(path)], "/..\0");
+
+  if((fd = open(path, 0)) < 0){
+    fprintf(2, "ls: cannot open %s\n", path);
+    return 0;
+  }
+
+  if(fstat(fd, &st) < 0){
+    fprintf(2, "ls: cannot stat %s\n", path);
+    close(fd);
+    return 0;
+  }
+
+  switch(st.type){
+  case T_FILE:
+    size += st.size;
+    break;
+
+  case T_DIR:
+    if(strlen(path) + 1 + DIRSIZ + 1 > sizeof buf){
+      printf("ls: path too long\n");
+      break;
+    }
+    strcpy(buf, path); 
+    p = buf+strlen(buf);
+    *p++ = '/';
+    while(read(fd, &de, sizeof(de)) == sizeof(de)){
+      if(de.inum == 0)
+        continue;
+      memmove(p, de.name, DIRSIZ);
+      p[DIRSIZ] = 0;
+      if(stat(buf, &st) < 0){
+        continue;
+      }
+      if((strcmp(buf, curdir) == 0) || (strcmp(buf, updir) == 0)){
+          continue;
+      }
+      size += st.size;
+    }
+    break;
+  }
+  close(fd);
+  return size;
+}
+
+int
 main(int argc, char *argv[]){
     if(argc < 4){
         printf("too few arguments\n");
@@ -30,10 +88,18 @@ main(int argc, char *argv[]){
     //     setmaxcproc(argv[2], numproc);
     // }
 
+    //current container used disk space before start
+    char path[strlen(argv[2])+2];
+    strcpy(path, "/");
+    strcpy(&path[1],argv[2]);
+    strcpy(&path[strlen(argv[2])+1],"\0");
+
+    int disksize = containerinitdisk(path);
+    printf("cont dir size: %d\n",disksize);
 
     /* fork a child and exec argv[2] */
     int id = cfork(argv[2]);
-
+    int cstart_rv = 0;
     if (id == 0){
         close(0);
         close(1);
@@ -41,15 +107,15 @@ main(int argc, char *argv[]){
         dup(vcfd);
         dup(vcfd);
         dup(vcfd);
-        int cstart_rv = cstart(argv[2], argv[1]);
+        cstart_rv = cstart(argv[2], argv[1], disksize);
         if(cstart_rv < 0){
             printf("start container failed\n");
             exit(0);
+        }else{
+            printf("container started\n");
         }
         exec(argv[3], &argv[3]);
         exit(0);
     }
-
-    printf("%s started on %s in container %s\n", argv[3], argv[1], argv[2]);
     exit(0);
 }

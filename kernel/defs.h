@@ -132,7 +132,7 @@ void            userinit(void);
 void            acquirecidlock(void);
 void            releasecidlock(void);
 int             kccreate(char *);
-int             kcstart(char *, char *);
+int             kcstart(char *, char *, uint64);
 int             kcpause(char*);
 int             kcstop(char*);
 int             freecontainer(struct container *c);

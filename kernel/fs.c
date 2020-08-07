@@ -710,3 +710,38 @@ unusedblock(struct inode* ip)
   printf("\nTotal free blocks = %d\n", countf);
 }
 
+// Returns directory size in bytes
+uint64
+dirsize(struct inode *dp, char *name)
+{
+  int off;
+  struct dirent de;
+  struct inode *ip;
+  char path[512]; 
+  uint size;
+
+  size = 0;
+
+  // Check that name is present.
+  if(dirlookup(dp, name, 0))
+    return -1;
+
+  // Use dirent names to make absolute path to
+  for(off = 0; off < dp->size; off += sizeof(de)){
+    if(readi(dp, 0, (uint64)&de, off, sizeof(de)) != sizeof(de))
+      panic("dirsize read");
+
+    memmove(path, name, strlen(name));
+    memmove(path + strlen(name), "/", 1);
+    memmove(path + strlen(name) + 1, de.name, strlen(de.name));
+    memmove(path + strlen(name) + 1 + strlen(de.name), "\0", 1);
+
+    if((ip = namei(path)) && ip->inum != ROOTINO && ip->inum != dp->inum){
+      ilock(ip);  
+      size += ip->size;      
+      iunlock(ip);
+    }
+  }
+    
+  return size;
+}
