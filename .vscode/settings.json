@@ -16,7 +16,8 @@
         "new": "cpp",
         "sstream": "cpp",
         "streambuf": "cpp",
-        "locale": "cpp"
+        "locale": "cpp",
+        "file.h": "c"
     },
     "C_Cpp.errorSquiggles": "Enabled"
 }

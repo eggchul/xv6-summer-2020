@@ -284,8 +284,12 @@ growproc(int n)
   uint sz;
   struct proc *p = myproc();
 
+  // if(myproc() != 0){
+  //   int rv = updatecontmem(n, myproc()->cont);
+  // }
   sz = p->sz;
   if(n > 0){
+    //if ( n + p->cont->usedmem > p->cont->maxmem)
     if((sz = uvmalloc(p->pagetable, sz, sz + n)) == 0) {
       return -1;
     }
@@ -293,6 +297,7 @@ growproc(int n)
     sz = uvmdealloc(p->pagetable, sz, sz + n);
   }
   p->sz = sz;
+
   return 0;
 }
 
@@ -683,7 +688,8 @@ kill(int pid)
     acquire(&p->lock);
     if(p->pid == pid){
       if(p->cont->isroot != 1){ // process is not in root container
-        printf("Current container has no access to this pid\n");
+        printf("Root container has no access to this pid\n");
+        release(&p->lock);
         return -1;
       }
       p->killed = 1;
