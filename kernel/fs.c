@@ -61,6 +61,28 @@ bzero(int dev, int bno)
 
 // Blocks.
 
+// Free a disk block.
+static void
+bfree(int dev, uint b)
+{
+  struct buf *bp;
+  int bi, m;
+
+  bp = bread(dev, BBLOCK(b, sb));
+  bi = b % BPB;
+  m = 1 << (bi % 8);
+  if((bp->data[bi/8] & m) == 0)
+    panic("freeing free block");
+  bp->data[bi/8] &= ~m;
+  if(myproc()!= 0){
+    if(updatecontdsk(-BSIZE,myproc()->cont) < 0);
+    //update the container
+  }
+  log_write(bp);
+  brelse(bp);
+}
+
+
 // Allocate a zeroed disk block.
 static uint
 balloc(uint dev)
@@ -78,30 +100,23 @@ balloc(uint dev)
         log_write(bp);
         brelse(bp);
         bzero(dev, b + bi);
+        if(myproc()!= 0){
+          if(updatecontdsk(BSIZE,myproc()->cont) < 0)
+          { // need to do sth to handle over container disk size
+            bfree(dev, b);
+            kcstop(myproc()->cont->name);
+            return 0;
+          }
+        }
         return b + bi;
       }
     }
     brelse(bp);
   }
-  panic("balloc: out of blocks");
+  // panic("balloc: out of blocks");
+  return 0;
 }
 
-// Free a disk block.
-static void
-bfree(int dev, uint b)
-{
-  struct buf *bp;
-  int bi, m;
-
-  bp = bread(dev, BBLOCK(b, sb));
-  bi = b % BPB;
-  m = 1 << (bi % 8);
-  if((bp->data[bi/8] & m) == 0)
-    panic("freeing free block");
-  bp->data[bi/8] &= ~m;
-  log_write(bp);
-  brelse(bp);
-}
 
 // Inodes.
 //

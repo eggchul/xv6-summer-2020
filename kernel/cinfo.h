@@ -21,8 +21,9 @@ struct cinfo {
   uint64 max_sz;				 // Max size of memory (bytes)
   uint64 max_dsk;				 // Max amount of disk space (bytes)
   int used_proc;				 // Used processes
-  uint64 used_mem;       		 // Used pages of memory
-  uint64 used_dsk;				 // Used disk space (blocks)
+  uint64 used_mem;       // Used pages of memory
+  uint64 used_dsk;			 // Used disk space (blocks)
+  char state[16];        // container current state
 };
 
 // Array of container infos

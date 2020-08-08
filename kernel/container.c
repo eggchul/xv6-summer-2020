@@ -181,6 +181,9 @@ updatecontproc(int procchange, struct container *c)
 	}else{
 		c->used_proc = c->used_proc + procchange;
 		//printf("updated:: cont:%s, used:%d, free:%d\n", c->name, c->used_proc, c->max_proc-c->used_proc);
+		if(c->used_proc < 0){
+			c->used_proc = 0;
+		}
 	}
 	return 1;
 }
@@ -372,6 +375,7 @@ kcpause(char* name)
 int 
 kcstop(char* name)
 {
+
 	struct container *c;
 	c = name2cont(name);
 	if(c == 0){
@@ -382,17 +386,18 @@ kcstop(char* name)
 		printf("Error: kcstop,  cannot stop root container\n");
 		return -1;
 	}
-	
-	if (c->state != CRUNNABLE || c->state != CPAUSED){
+	printf("kcstop checking container %s state\n", c->name);
+	if (c->state != CRUNNABLE && c->state != CPAUSED){
 		printf("Error: kcstop, cannot kill a not running container\n");
 		return -1;
 	}
 
 	acquire(&c->lock);
-	containerkillall(c);
 	c->state = CSTOPPED;
+	containerkillall(c);
 	release(&c->lock);
 	freecontainer(c);
+	resetticksforcontainers();
 	return 1;
 }
 
@@ -426,7 +431,7 @@ kcresume(char* name)
 		return -1;
 	}
 	
-	if (c->state != CRUNNABLE && c->state != CPAUSED){
+	if (c->state != CPAUSED){
 		printf("Error: kcresume, container is already in progress\n");
 		return -1;
 	}
@@ -453,42 +458,44 @@ The execution statistics and percent of CPU consumed by each process and each co
 int
 continfo(uint64 info_c)
 {
-  struct container *c = myproc()->cont;
-  if(c->isroot != 1){
-	  printf("Only root container can execute cinfo\n");
-	  return -1;
-  }
-  struct continfo cinfoobj;
-  struct cinfo* cinfotable = cinfoobj.conts;
-  int i;
-  uint64 totalmem = 0;
-  uint64 totaldisk = 0;
-  int totalproc = 0;
+	char* statestr[] = {"unused", "inited", "runnable", "paused","stopped"};
+	struct container *c = myproc()->cont;
+	if(c->isroot != 1){
+		printf("Only root container can execute cinfo\n");
+		return -1;
+	}
+	struct continfo cinfoobj;
+	struct cinfo* cinfotable = cinfoobj.conts;
+	int i;
+	uint64 totalmem = 0;
+	uint64 totaldisk = 0;
+	int totalproc = 0;
 
-  for(i = 0; i < NCONT; i ++) {
-	strncpy(cinfotable[i].cname, cont[i].name, 16);
-	cinfotable[i].max_dsk = cont[i].max_dsk;
-	cinfotable[i].max_sz = cont[i].max_sz;
-	cinfotable[i].max_proc = cont[i].max_proc;
-	cinfotable[i].used_dsk = cont[i].used_dsk;
-	cinfotable[i].used_mem = usedmemforcontainer(&cont[i]);
-	printf("cont: %s, cont[i].usedmem: %d, usedmem(cont[i]): %d\n", cont[i].name, cont[i].used_mem, cinfotable[i].used_mem);
-	cinfotable[i].used_proc = cont[i].used_proc;
-	// count for root container
-	totalmem = cont[i].used_mem + totalmem;
-	totaldisk = cont[i].used_dsk + totaldisk;
-	totalproc = cont[i].used_proc + totalproc;
-  }
+	for(i = 0; i < NCONT; i ++) {
+		strncpy(cinfotable[i].cname, cont[i].name, 16);
+		strncpy(cinfotable[i].state, statestr[cont[i].state], 16);
+		cinfotable[i].max_dsk = cont[i].max_dsk;
+		cinfotable[i].max_sz = cont[i].max_sz;
+		cinfotable[i].max_proc = cont[i].max_proc;
+		cinfotable[i].used_dsk = cont[i].used_dsk;
+		cinfotable[i].used_mem = cont[i].used_mem;
+		cinfotable[i].used_proc = cont[i].used_proc;
+		// count for root container
+		totalmem = cont[i].used_mem + totalmem;
+		totaldisk = cont[i].used_dsk + totaldisk;
+		totalproc = cont[i].used_proc + totalproc;
+	}
 
-  //assign value for root
-  cinfotable[ROOTCONT].max_dsk = cont[ROOTCONT].max_dsk;
-  cinfotable[ROOTCONT].max_sz = cont[ROOTCONT].max_sz;
-  cinfotable[ROOTCONT].max_proc = cont[ROOTCONT].max_proc;
-  cinfotable[ROOTCONT].used_proc = totalusedproc();
-  cinfotable[ROOTCONT].used_mem = totalusedmem();
-  cinfotable[ROOTCONT].used_dsk = totaldisk + cont[ROOTCONT].used_dsk;
-  copyout(myproc()->pagetable, info_c, (void *) &cinfoobj, sizeof(struct continfo));
-  return 1;
+	//assign value for root
+	cinfotable[ROOTCONT].max_dsk = cont[ROOTCONT].max_dsk;
+	cinfotable[ROOTCONT].max_sz = cont[ROOTCONT].max_sz;
+	cinfotable[ROOTCONT].max_proc = cont[ROOTCONT].max_proc;
+	cinfotable[ROOTCONT].used_proc = totalproc;
+	cinfotable[ROOTCONT].used_mem = totalmem;
+	cinfotable[ROOTCONT].used_dsk = totaldisk;
+
+	copyout(myproc()->pagetable, info_c, (void *) &cinfoobj, sizeof(struct continfo));
+	return 1;
 }
 
 /*
@@ -561,3 +568,9 @@ kcfreemem(void)
 	}
 }
 
+void
+resetticksforcontainers(){
+	for(i = 0; i < NCONT; i++){
+		cont[i].ticks = 0;
+	}
+}

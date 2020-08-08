@@ -209,7 +209,7 @@ proc_pagetable(struct proc *p)
 
   // An empty page table.
   pagetable = uvmcreate();
-
+  
   // map the trampoline code (for system call return)
   // at the highest user virtual address.
   // only the supervisor uses it, on the way
@@ -1075,9 +1075,11 @@ pauseprocforcontainer(struct container *c)
   struct proc *p;
 
   for(p = proc; p < &proc[NPROC]; p++){
+    acquire(&p->lock);
     if(p->cont == c && p->state != UNUSED){
       p->state = SUSPENDED;
     }
+    release(&p->lock);
   }
 }
 
@@ -1085,10 +1087,28 @@ void
 resumeprocforcontainer(struct container *c)
 {
   struct proc *p;
-
   for(p = proc; p < &proc[NPROC]; p++){
+    acquire(&p->lock);
     if(p->cont->cid == c->cid && p->state == SUSPENDED){
       p->state = RUNNABLE;
     }
+    release(&p->lock);
+  }
+}
+
+void 
+stopprocforcontainer(struct container* c)
+{
+  struct proc *p;
+  for(p = proc; p < &proc[NPROC]; p++){
+    acquire(&p->lock);
+    if(p->cont == c){
+      p->killed = 1;
+      if(p->state == SLEEPING || p->state == SUSPENDED){
+        // Wake process from sleep().
+        p->state = RUNNABLE;
+      }
+    }
+    release(&p->lock);
   }
 }

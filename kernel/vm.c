@@ -6,6 +6,7 @@
 #include "defs.h"
 #include "fs.h"
 
+
 /*
  * the kernel's page table.
  */
@@ -256,6 +257,7 @@ uvmalloc(pagetable_t pagetable, uint64 oldsz, uint64 newsz)
       return 0;
     }
   }
+
   return newsz;
 }
 

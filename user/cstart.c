@@ -95,7 +95,7 @@ main(int argc, char *argv[]){
     strcpy(&path[strlen(argv[2])+1],"\0");
 
     int disksize = containerinitdisk(path);
-    printf("cont dir size: %d\n",disksize);
+    // printf("cont dir size: %d\n",disksize);
 
     /* fork a child and exec argv[2] */
     int id = cfork(argv[2]);

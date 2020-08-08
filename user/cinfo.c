@@ -5,6 +5,7 @@
 #include "kernel/pinfo.h"
 
 #define B2KB 1024
+#define B2MB 1048576
 // continfo
 /*
 It will show each container
@@ -36,9 +37,9 @@ main(int argc, char* argv[])
         int a;
         for(a = 0; a < NCONT; a ++){
             if(strcmp(cd[a].cname, "rootcont")== 0){
-                printf("Container: %s\tDirectory: .\n", cd[a].cname);
+                printf("==== Container: %s\tDirectory: . \tState: %s ====\n", cd[a].cname, cd[a].state);
             }else{
-                printf("Container: %s\tDirectory: %s\n", cd[a].cname, cd[a].cname);
+                printf("==== Container: %s\tDirectory: %s \tState: %s ====\n", cd[a].cname, cd[a].cname, cd[a].state);
             }
             printf("\t\t USED \t\t FREE\n");
             printf("DISK:\t\t%d Kb \t\t %d Kb\n", cd[a].used_dsk/B2KB, (cd[a].max_dsk - cd[a].used_dsk)/B2KB);
@@ -53,6 +54,7 @@ main(int argc, char* argv[])
                 }
             }
             printf("\n");
+            printf("----------------------------------\n");
             printf("\n");
         }
 

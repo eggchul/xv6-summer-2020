@@ -114,7 +114,8 @@ struct proc {
   int ticks;                   // counter of ticks
 };
 
-enum contstate { CUNUSED, CINITED, CRUNNABLE, CRUNNING, CPAUSED, CSTOPPED};
+enum contstate { CUNUSED, CINITED, CRUNNABLE, CPAUSED, CSTOPPED};
+
 struct container {
   struct spinlock lock;
   //c->lock need to be held
