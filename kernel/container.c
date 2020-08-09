@@ -188,6 +188,14 @@ updatecontproc(int procchange, struct container *c)
 	return 1;
 }
 
+void
+resetticksforcontainers(){
+	int i;
+	for(i = 0; i < NCONT; i++){
+		cont[i].ticks = 0;
+	}
+}
+
 struct container*
 getnextconttosched(void)
 {
@@ -568,9 +576,4 @@ kcfreemem(void)
 	}
 }
 
-void
-resetticksforcontainers(){
-	for(i = 0; i < NCONT; i++){
-		cont[i].ticks = 0;
-	}
-}
+

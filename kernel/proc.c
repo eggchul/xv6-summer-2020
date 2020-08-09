@@ -137,39 +137,14 @@ found:
   memset(&p->context, 0, sizeof p->context);
   p->context.ra = (uint64)forkret;
   p->context.sp = p->kstack + PGSIZE;
-  p->ticks = 0;
   return p;
 }
 
 struct proc*
-getlessticksrunnableproc(struct container *c){
-  struct proc *p;
-  int less = -1;
-  int tick = 0;
-  int i;
-  for(i = 0; i < NPROC; i ++){
-    p = &proc[i];
-    acquire(&p->lock);
-    if(p->cont == c && p->state == RUNNABLE){
-      if(less == -1){
-        //start iterating the list set the first process's tick as the least
-        tick = p->ticks;
-        less = i;
-      }else{
-        if(p->ticks < tick){
-          // found less ticked process in the target container, update
-          tick = p->ticks;
-          less = i;
-        }
-      }
-    }
-    release(&p->lock);
-  }
-  if(less < 0){
-    printf("found no less tick proc, need to check system\n");
-    return 0;
-  }
-  p = &proc[less];
+getnextprocforcontainer(struct container *c){
+  struct proc* p;
+  p = &proc[c->nextproctorun];
+  //iterate the proc[] and find runnable next proc
   return p;
 }
 
@@ -197,7 +172,6 @@ freeproc(struct proc *p)
     updatecontproc(-1,p->cont);
   }
   p->cont = 0;
-  p->ticks = 0;
 }
 
 // Create a page table for a given process,
@@ -209,7 +183,7 @@ proc_pagetable(struct proc *p)
 
   // An empty page table.
   pagetable = uvmcreate();
-  
+
   // map the trampoline code (for system call return)
   // at the highest user virtual address.
   // only the supervisor uses it, on the way
