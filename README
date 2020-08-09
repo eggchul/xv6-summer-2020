@@ -1,4 +1,15 @@
-xv6 is a re-implementation of Dennis Ritchie's and Ken Thompson's Unix
+This is a summer class project. Here is the list of accomplishments of this project.
+
+Develop a strace command to trace the system calls made by a target program.
+Develop a version of ps (process status) for xv6.
+Develop command to allow for process hibernation (process suspend and resume).
+Extend xv6 to support virtual consoles.
+Extend xv6 to support container features with isolations in process group, resource, file system.
+
+
+Attached is the original xv6 source code README
+
+"xv6 is a re-implementation of Dennis Ritchie's and Ken Thompson's Unix
 Version 6 (v6).  xv6 loosely follows the structure and style of v6,
 but is implemented for a modern RISC-V multiprocessor using ANSI C.
 
@@ -33,7 +44,7 @@ ERROR REPORTS
 Please send errors and suggestions to Frans Kaashoek and Robert Morris
 (kaashoek,rtm@mit.edu). The main purpose of xv6 is as a teaching
 operating system for MIT's 6.828, so we are more interested in
-simplifications and clarifications than new features.
+simplifications and clarifications than new features."
 
 BUILDING AND RUNNING XV6
 
