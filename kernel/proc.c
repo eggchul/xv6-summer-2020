@@ -1050,8 +1050,11 @@ pauseprocforcontainer(struct container *c)
 
   for(p = proc; p < &proc[NPROC]; p++){
     acquire(&p->lock);
-    if(p->cont == c && p->state != UNUSED){
-      p->state = SUSPENDED;
+    if(p->cont == c){
+      if(p->state == SLEEPING || p->state == RUNNABLE){
+        // Wake process from sleep().
+        p->state = SUSPENDED;
+      }
     }
     release(&p->lock);
   }
@@ -1060,14 +1063,19 @@ pauseprocforcontainer(struct container *c)
 void
 resumeprocforcontainer(struct container *c)
 {
+  printf("resuming process...\n");
   struct proc *p;
   for(p = proc; p < &proc[NPROC]; p++){
     acquire(&p->lock);
-    if(p->cont->cid == c->cid && p->state == SUSPENDED){
-      p->state = RUNNABLE;
+    if(p->cont == c){
+      if(p->state == SUSPENDED){
+        // Wake process from sleep().
+        p->state = RUNNABLE;
+      }
     }
     release(&p->lock);
   }
+  printf("resume processes ok\n");
 }
 
 void 

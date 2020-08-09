@@ -439,6 +439,10 @@ kcresume(char* name)
 		return -1;
 	}
 	
+	if(c->isroot){
+		printf("Error: kcresume,  cannot resume root container\n");
+		return -1;
+	}
 	if (c->state != CPAUSED){
 		printf("Error: kcresume, container is already in progress\n");
 		return -1;
