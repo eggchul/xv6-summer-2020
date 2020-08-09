@@ -4,7 +4,7 @@ Develop a strace command to trace the system calls made by a target program.
 Develop a version of ps (process status) for xv6.
 Develop command to allow for process hibernation (process suspend and resume).
 Extend xv6 to support virtual consoles.
-Extend xv6 to support container features with isolations in process group, resource, file system.
+Extend xv6 to support container features with isolation in process group, resource, file system.
 
 
 Attached is the original xv6 source code README
