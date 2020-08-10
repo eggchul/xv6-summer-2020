@@ -503,15 +503,25 @@ scheduler(void)
 {
   struct proc *p;
   struct cpu *c = mycpu();
+  struct container *cont;
+  int i;
+  int start;
   
   c->proc = 0;
   for(;;){
     // Avoid deadlock by ensuring that devices can interrupt.
     intr_on();
 
-    for(p = proc; p < &proc[NPROC]; p++) {
+    // &proc[cont->nextproctorun];
+    i = 0;
+
+    cont = getnextconttosched();
+    printf("Next container to sched: %s\n", cont->name);
+
+    for(p = proc; p < &proc[NPROC] && i < cont->used_proc; p++) {
       acquire(&p->lock);
-      if(p->state == RUNNABLE) {
+      if(p->state == RUNNABLE && p->cont->cid == cont->cid) {
+        start = ticks;
         // Switch to chosen process.  It is the process's job
         // to release its lock and then reacquire it
         // before jumping back to us.
@@ -522,8 +532,13 @@ scheduler(void)
         // Process is done running for now.
         // It should have changed its p->state before coming back.
         c->proc = 0;
+        cont->ticks += (ticks - start);
+        i++;
       }
       release(&p->lock);
+    }
+    if(i == cont->used_proc) {
+       //reset this container's ticks?
     }
   }
 }

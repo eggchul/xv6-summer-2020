@@ -228,9 +228,9 @@ getnextconttosched(void)
 {
 	int i;
 	struct container *c = &cont[0];
-	int holder = cont[0].ticks;
+	int holder = cont[0]->ticks;
 	for(i = 1; i < NCONT; i++){
-		if(cont[i].ticks < holder && cont[i].state == CRUNNABLE){
+		if(cont[i]->ticks < holder && cont[i]->state == CRUNNABLE){
 			c = &cont[i];
 		}
 	}
