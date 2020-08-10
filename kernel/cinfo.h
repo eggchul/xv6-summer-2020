@@ -24,6 +24,7 @@ struct cinfo {
   uint64 used_mem;       // Used pages of memory
   uint64 used_dsk;			 // Used disk space (blocks)
   char state[16];        // container current state
+  int ticks;
 };
 
 // Array of container infos

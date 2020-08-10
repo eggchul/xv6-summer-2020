@@ -523,6 +523,7 @@ continfo(uint64 info_c)
 		cinfotable[i].used_dsk = cont[i].used_dsk;
 		cinfotable[i].used_mem = cont[i].used_mem;
 		cinfotable[i].used_proc = cont[i].used_proc;
+		cinfotable[i].ticks = cont[i].ticks;
 		// count for root container
 		totalmem = cont[i].used_mem + totalmem;
 		totaldisk = cont[i].used_dsk + totaldisk;

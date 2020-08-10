@@ -37,9 +37,9 @@ main(int argc, char* argv[])
         int a;
         for(a = 0; a < NCONT; a ++){
             if(strcmp(cd[a].cname, "rootcont")== 0){
-                printf("==== Container: %s\tDirectory: . \tState: %s ====\n", cd[a].cname, cd[a].state);
+                printf("==== Container: %s\tDirectory: . \tState: %s \tTicks %d ====\n", cd[a].cname, cd[a].state, cd[a].ticks);
             }else{
-                printf("==== Container: %s\tDirectory: %s \tState: %s ====\n", cd[a].cname, cd[a].cname, cd[a].state);
+                printf("==== Container: %s\tDirectory: %s \tState: %s \tTicks %d ====\n", cd[a].cname, cd[a].cname, cd[a].state, cd[a].ticks);
             }
             printf("\t\t USED \t\t FREE\n");
             printf("DISK:\t\t%d Kb \t\t %d Kb\n", cd[a].used_dsk/B2KB, (cd[a].max_dsk - cd[a].used_dsk)/B2KB);
@@ -47,7 +47,7 @@ main(int argc, char* argv[])
             printf("PROC:\t\t%d \t\t %d\n", cd[a].used_proc, (cd[a].max_proc - cd[a].used_proc));
             printf("\n");
             int i;
-            printf("PID\tPID(local)\tMEM\tNAME\tCONT_NAME\n");
+            printf("PID\tPID(local)\tMEM\tNAME\tCONT_NAME\t\n");
             for(i = 0; i < pf.numproc; i ++) {
                 if(strcmp(pd[i].contname, cd[a].cname)==0){
                     printf("%d\t%d\t\t%d\t%s\t%s\n", pd[i].pid, pd[i].local_pid, pd[i].mem, pd[i].name, pd[i].contname);

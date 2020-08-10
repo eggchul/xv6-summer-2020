@@ -504,7 +504,7 @@ scheduler(void)
   struct proc *p;
   struct cpu *c = mycpu();
   struct container *cont;
-  int i;
+  // int i;
   int start;
   
   c->proc = 0;
@@ -513,13 +513,14 @@ scheduler(void)
     intr_on();
 
     // &proc[cont->nextproctorun];
-    i = 0;
+    // i = 0;
 
     cont = getnextconttosched();
 
-    for(p = proc; p < &proc[NPROC] && i < cont->used_proc; p++) {
+    for(p = proc; p < &proc[NPROC]; p++) {
       acquire(&p->lock);
       if(p->state == RUNNABLE && p->cont->cid == cont->cid) {
+
         start = ticks;
         // Switch to chosen process.  It is the process's job
         // to release its lock and then reacquire it
@@ -530,15 +531,17 @@ scheduler(void)
 
         // Process is done running for now.
         // It should have changed its p->state before coming back.
+        p->ticks += (ticks - start);
         c->proc = 0;
         cont->ticks += (ticks - start);
-        i++;
+
+        // i++;
       }
       release(&p->lock);
     }
-    if(i == cont->used_proc) {
-       //reset this container's ticks?
-    }
+    // if(i == cont->used_proc) {
+    //    //reset this container's ticks?
+    // }
   }
 }
 
