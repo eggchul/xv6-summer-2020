@@ -166,6 +166,9 @@ clockintr()
   ticks++;
   wakeup(&ticks);
   release(&tickslock);
+  // if(myproc()!=0){
+  //   myproc()->cont->ticks ++;
+  // }
 }
 
 // check if it's an external interrupt or software interrupt,

@@ -622,6 +622,7 @@ climitexceedhandler(struct container *c)
 		return;
 	}
 	printf("kernel: stopping container %s state\n", c->name);
+	c->state = CSTOPPED;
 	stopprocforcontainer(c);
 	freecontainer(c);
 	printf("kernel: container %s stopped\n",c->name);

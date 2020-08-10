@@ -132,7 +132,7 @@ found:
   // An empty user page table.
   p->pagetable = proc_pagetable(p);
   if(p->pagetable == 0){
-    kfree(p->tf);
+    // kfree(p->tf);
     return 0;
   }
 
