@@ -515,11 +515,9 @@ scheduler(void)
     // &proc[cont->nextproctorun];
     i = 0;
 
-    cont = getnextconttosched();
-    printf("Next container to sched: %s\n", cont->name);
-
     for(p = proc; p < &proc[NPROC] && i < cont->used_proc; p++) {
       acquire(&p->lock);
+      cont = getnextconttosched();
       if(p->state == RUNNABLE && p->cont->cid == cont->cid) {
         start = ticks;
         // Switch to chosen process.  It is the process's job
@@ -537,9 +535,9 @@ scheduler(void)
       }
       release(&p->lock);
     }
-    if(i == cont->used_proc) {
-       //reset this container's ticks?
-    }
+    // if(i == cont->used_proc) {
+    //    //reset this container's ticks?
+    // }
   }
 }
 
