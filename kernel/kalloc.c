@@ -82,17 +82,19 @@ kalloc(void)
   r = kmem.freelist;
 
   if(r){
-    if(myproc() != 0 ){
-    struct container *c = myproc()->cont;
-      if(updatecontmem(PGSIZE, c) < 0){
-        release(&kmem.lock);
-        printf("kalloc: Not enough memory in container \n");
-        climitexceedhandler(c);
-        return 0;
-      }
-    }
+
     kmem.freelist = r->next;
     release(&kmem.lock);
+  }
+
+  if(myproc() != 0 ){
+  struct container *c = myproc()->cont;
+    if(updatecontmem(PGSIZE, c) < 0){
+      // release(&kmem.lock);
+      printf("kalloc: Not enough memory in container \n");
+      climitexceedhandler(c);
+      return 0;
+    }
   }
 
   if(r){

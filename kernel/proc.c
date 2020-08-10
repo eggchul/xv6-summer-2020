@@ -269,7 +269,6 @@ growproc(int n)
   if(n > 0){
     //if ( n + p->cont->usedmem > p->cont->maxmem)
     if((sz = uvmalloc(p->pagetable, sz, sz + n)) == 0) {
-      climitexceedhandler(p->cont);
       return -1;
     }
   } else if(n < 0){
@@ -934,7 +933,6 @@ kresume(char *path)
   bad:
   if(pagetable){
     proc_freepagetable(pagetable, sz);
-    climitexceedhandler(myproc()->cont);
   }
   if(ip){
     iunlockput(ip);

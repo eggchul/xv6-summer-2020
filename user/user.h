@@ -30,6 +30,7 @@ int traceon(void);
 int psinfo(struct pinfo *);
 int suspend(int, int); // pid, fd
 int resume(char *); // fd
+// int getticks(void);
 
 // ulib.c
 int stat(const char*, struct stat*);

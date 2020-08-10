@@ -210,3 +210,9 @@ sys_setmaxcproc(void)
   }
   return setmaxproc(path, numproc);
 }
+
+uint64
+sys_getticks(void){
+  // return myproc()->ticks;
+  return 0;
+}

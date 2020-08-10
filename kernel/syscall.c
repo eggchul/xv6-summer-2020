@@ -122,6 +122,7 @@ extern uint64 sys_cfree(void);
 extern uint64 sys_setmaxcmem(void);
 extern uint64 sys_setmaxcdsk(void);
 extern uint64 sys_setmaxcproc(void);
+extern uint64 sys_getticks(void);
 
 static uint64 (*syscalls[])(void) = {
 [SYS_fork]    sys_fork,
@@ -162,6 +163,7 @@ static uint64 (*syscalls[])(void) = {
 [SYS_setmaxcmem] sys_setmaxcmem,
 [SYS_setmaxcdsk] sys_setmaxcdsk,
 [SYS_setmaxcproc] sys_setmaxcproc,
+[SYS_getticks] sys_getticks,
 };
 
 void

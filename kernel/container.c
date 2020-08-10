@@ -152,8 +152,14 @@ setmaxproc(char *contname, int numproc)
 int
 updatecontmem(uint64 memchanged, struct container *c)
 {
+	if(c == 0){
+		return 0;
+	}
+	if(c->state == CUNUSED){
+		return 0;
+	}
 	if(c->used_mem + memchanged > c->max_sz && !c->isroot){
-		printf("Container memory exceed\n");
+		printf("Container %s memory exceed\n", c->name);
 		return -1;
 	} else {
 		// printf("-- container %s: used mem: %d, memchanged: %d\n", c->name, c->used_mem, memchanged);
@@ -168,6 +174,12 @@ updatecontmem(uint64 memchanged, struct container *c)
 int 
 updatecontdsk(uint64 dskchanged, struct container *c)
 {
+	if(c == 0){
+		return 0;
+	}
+	if(c->state == CUNUSED){
+		return 0;
+	}
 	if(c->used_dsk + dskchanged > c->max_dsk && !c->isroot){
 		printf("Container disk exceed\n");
 		return -1;
@@ -183,6 +195,12 @@ updatecontdsk(uint64 dskchanged, struct container *c)
 int
 updatecontproc(int procchange, struct container *c)
 {
+	if(c == 0){
+		return 0;
+	}
+	if(c->state == CUNUSED){
+		return 0;
+	}
 	//printf("checking:: cont:%s, used:%d, free:%d\n", c->name, c->used_proc, c->max_proc-c->used_proc);
 	if(c->used_proc + procchange > c->max_proc){
 		printf("Container proc exceed\n");
@@ -599,9 +617,13 @@ climitexceedhandler(struct container *c)
 		printf("Error: handling exceed resource limit,  cannot stop root container\n");
 		return;
 	}
+	if(c->state == CUNUSED){
+		// we do not need to handle unused container
+		return;
+	}
 	printf("kernel: stopping container %s state\n", c->name);
 	stopprocforcontainer(c);
 	freecontainer(c);
-	printf("kernel: container %s stopped\n");
+	printf("kernel: container %s stopped\n",c->name);
 
 }

@@ -37,3 +37,4 @@
 #define SYS_setmaxcmem 36
 #define SYS_setmaxcdsk 37
 #define SYS_setmaxcproc 38
+#define SYS_getticks 39

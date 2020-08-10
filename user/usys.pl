@@ -53,3 +53,4 @@ entry("cfree");
 entry("setmaxcmem");
 entry("setmaxcdsk");
 entry("setmaxcproc");
+entry("getticks");
