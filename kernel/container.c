@@ -85,7 +85,7 @@ name2cid(char* name)
 
 // set new max disk space for non root containers
 int
-setmaxdsk(char * contname, uint64 newmax)
+setmaxdsk(char * contname, int newmax)
 {
 	struct container *c = name2cont(contname);
 	if(c == 0){
@@ -95,7 +95,8 @@ setmaxdsk(char * contname, uint64 newmax)
 		printf("Cannot set disk limit for root container\n");
 		exit(0);
 	}
-	if(newmax > c->max_dsk){
+	printf("max dsk:%d, default max disk:%d\n", newmax, c->max_dsk);
+	if((uint64)(newmax*1024) - c->max_dsk>0){
 		printf("assign max disk exceed system limit, will use default size\n");
 		return -1;
 	}else{
@@ -106,7 +107,7 @@ setmaxdsk(char * contname, uint64 newmax)
 
 // set new max mem for non root container 
 int
-setmaxmem(char *contname, uint64 newmax)
+setmaxmem(char *contname, int newmax)
 {
 	struct container *c = name2cont(contname);
 	if(c == 0){
@@ -116,8 +117,9 @@ setmaxmem(char *contname, uint64 newmax)
 		printf("Cannot set mem limit for root container\n");
 		exit(0);
 	}
-	if(newmax > c->max_sz){
-		printf("assign max disk exceed system limit, will use default size\n");
+	printf("new max mem:%d, default max mem:%d\n", newmax,c->max_sz);
+	if((uint64)(newmax*1024) - c->max_sz > 0){
+		printf("assign max mem exceed system limit, will use default size\n");
 		return -1;
 	}else{
 		c->max_sz = newmax;
@@ -150,11 +152,15 @@ setmaxproc(char *contname, int numproc)
 int
 updatecontmem(uint64 memchanged, struct container *c)
 {
-	if(c->used_mem + memchanged > c->max_sz){
+	if(c->used_mem + memchanged > c->max_sz && !c->isroot){
 		printf("Container memory exceed\n");
 		return -1;
 	} else {
+		// printf("-- container %s: used mem: %d, memchanged: %d\n", c->name, c->used_mem, memchanged);
 		c->used_mem = c->used_mem + memchanged;
+		if((int)c->used_mem < 0){
+			c->used_mem = 0;
+		}
 	}
 	return 1;
 }
@@ -162,11 +168,14 @@ updatecontmem(uint64 memchanged, struct container *c)
 int 
 updatecontdsk(uint64 dskchanged, struct container *c)
 {
-	if(c->used_dsk + dskchanged > c->max_dsk){
+	if(c->used_dsk + dskchanged > c->max_dsk && !c->isroot){
 		printf("Container disk exceed\n");
 		return -1;
 	}else{
 		c->used_dsk = c->used_dsk + dskchanged;
+		if(c->used_dsk < 0){
+			c->used_dsk = 0;
+		}
 	}
 	return 1;
 }
@@ -351,6 +360,7 @@ int kcstart(char* name, char* vcname, uint64 disksize)
 	strncpy(c->vc_name, vcname, 16);
 	c->state = CRUNNABLE;
 	release(&c->lock);
+	resetticksforcontainers();
 	return 1;
 }
 
@@ -394,12 +404,12 @@ kcstop(char* name)
 		printf("Error: kcstop,  cannot stop root container\n");
 		return -1;
 	}
-	printf("kcstop checking container %s state\n", c->name);
+	printf("kernel: checking container %s state\n", c->name);
 	if (c->state != CRUNNABLE && c->state != CPAUSED){
 		printf("Error: kcstop, cannot kill a not running container\n");
 		return -1;
 	}
-
+	printf("kernel: stoping container %s ...\n", c->name);
 	acquire(&c->lock);
 	c->state = CSTOPPED;
 	containerkillall(c);
@@ -414,12 +424,14 @@ int
 freecontainer(struct container *c)
 { 
 	acquire(&c->lock);
-	c->name[0] = 0;
+	strncpy(c->name,"",16);
+	strncpy(c->vc_name,"",16);
 	c->max_dsk = 0;
 	c->max_sz = 0;
 	c->max_proc = 0;
 	c->rootdir = 0;
 	c->nextlocalpid = 0;
+	c->nextproctorun = 0;
 	c->used_dsk = 0;
 	c->used_mem = 0;
 	c->used_proc = 0;
@@ -452,7 +464,7 @@ kcresume(char* name)
 	c->state = CRUNNABLE;
 	resumeprocforcontainer(c);
 	release(&c->lock);
-	
+	resetticksforcontainers();
 	return 1;
 }
 
@@ -580,4 +592,16 @@ kcfreemem(void)
 	}
 }
 
+void 
+climitexceedhandler(struct container *c)
+{
+	if(c->isroot){
+		printf("Error: handling exceed resource limit,  cannot stop root container\n");
+		return;
+	}
+	printf("kernel: stopping container %s state\n", c->name);
+	stopprocforcontainer(c);
+	freecontainer(c);
+	printf("kernel: container %s stopped\n");
 
+}

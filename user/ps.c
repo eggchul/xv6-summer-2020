@@ -17,7 +17,7 @@ int main(int argc, char *argv[])
         int i;
         printf("PID\tMEM\tNAME\n");
         for(i = 0; i < run_proc.numproc; i ++) {
-            printf("%d\tt%d\t%s\n", pd[i].local_pid, pd[i].mem, pd[i].name);
+            printf("%d\t%d\t%s\n", pd[i].local_pid, pd[i].mem, pd[i].name);
         }
     }else{
         printf("failed to get proc info\n");

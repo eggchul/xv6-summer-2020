@@ -209,8 +209,11 @@ uvmcreate()
 {
   pagetable_t pagetable;
   pagetable = (pagetable_t) kalloc();
-  if(pagetable == 0)
-    panic("uvmcreate: out of memory");
+  if(pagetable == 0){
+    //panic("uvmcreate: out of memory");
+    return 0;
+  }
+    
   memset(pagetable, 0, PGSIZE);
   return pagetable;
 }

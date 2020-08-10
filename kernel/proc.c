@@ -131,6 +131,10 @@ found:
 
   // An empty user page table.
   p->pagetable = proc_pagetable(p);
+  if(p->pagetable == 0){
+    kfree(p->tf);
+    return 0;
+  }
 
   // Set up new context to start executing at forkret,
   // which returns to user space.
@@ -265,6 +269,7 @@ growproc(int n)
   if(n > 0){
     //if ( n + p->cont->usedmem > p->cont->maxmem)
     if((sz = uvmalloc(p->pagetable, sz, sz + n)) == 0) {
+      climitexceedhandler(p->cont);
       return -1;
     }
   } else if(n < 0){
@@ -927,8 +932,10 @@ kresume(char *path)
   return 0;
 
   bad:
-  if(pagetable)
+  if(pagetable){
     proc_freepagetable(pagetable, sz);
+    climitexceedhandler(myproc()->cont);
+  }
   if(ip){
     iunlockput(ip);
     end_op(ROOTDEV);

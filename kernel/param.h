@@ -13,5 +13,5 @@
 #define MAXPATH      128 // maximum file path name
 #define NCONT         8  // maximum number of containers
 #define ROOTCONT      0  // root container cid is 0
-#define MAX_CDISK    NPROC*4000*1024        // bytes
+#define MAX_CDISK    NPROC*400*1024        // bytes
 #define MAX_CMEM     NPROC*1000*4096        // bytes

@@ -184,7 +184,7 @@ sys_setmaxcmem(void)
     printf("sys_setmaxcmem() read filename failed\n");
     return -1;
   }
-  return setmaxmem(path, (uint64) mem);
+  return setmaxmem(path, mem);
 }
 
 uint64
@@ -196,7 +196,7 @@ sys_setmaxcdsk(void)
     printf("sys_setmamcdsk() read filename failed\n");
     return -1;
   }
-  return setmaxdsk(path, (uint64)dsk);
+  return setmaxdsk(path, dsk);
 }
 
 uint64

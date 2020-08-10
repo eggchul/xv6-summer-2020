@@ -149,10 +149,11 @@ int             updatecontproc(int, struct container *);
 struct container* getnextconttosched(void);
 int             kcfreemem(void);
 int             kcdf(void);
-int             setmaxdsk(char *, uint64);
-int             setmaxmem(char *, uint64);
+int             setmaxdsk(char *, int);
+int             setmaxmem(char *, int);
 int             setmaxproc(char *, int);
 void            stopprocforcontainer(struct container*);
+void            climitexceedhandler(struct container*);
 
 // swtch.S
 void            swtch(struct context*, struct context*);

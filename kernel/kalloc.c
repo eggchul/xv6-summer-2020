@@ -57,20 +57,16 @@ kfree(void *pa)
 
   r = (struct run*)pa;
 
-  if(myproc() != 0){
-    // in root container can do nothing
-    struct container *c = myproc()->cont;
-    if(updatecontmem(-PGSIZE, c) < 0){
-      printf("Free too much mem container \n");
-      kcstop(c->name);
-      exit(0);
-    }
-  }
-
   acquire(&kmem.lock);
   r->next = kmem.freelist;
   kmem.freelist = r;
   release(&kmem.lock);
+
+  if(myproc() != 0){
+    // in root container can do nothing
+    struct container *c = myproc()->cont;
+    updatecontmem(-PGSIZE, c);
+  }
 
 }
 
@@ -86,19 +82,18 @@ kalloc(void)
   r = kmem.freelist;
 
   if(r){
-    kmem.freelist = r->next;
-  release(&kmem.lock);
-  }
-
-  if(myproc() != 0 ){
+    if(myproc() != 0 ){
     struct container *c = myproc()->cont;
-    if(updatecontmem(PGSIZE, c) < 0){
-      printf("Not enough memory in container \n");
-      kcstop(c->name);
-      exit(0);
+      if(updatecontmem(PGSIZE, c) < 0){
+        release(&kmem.lock);
+        printf("kalloc: Not enough memory in container \n");
+        climitexceedhandler(c);
+        return 0;
+      }
     }
+    kmem.freelist = r->next;
+    release(&kmem.lock);
   }
-
 
   if(r){
     memset((char*)r, 5, PGSIZE); // fill with junk

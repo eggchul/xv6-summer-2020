@@ -52,9 +52,6 @@ unlinkcontainerfiles(char* path)
       if(stat(buf, &st) < 0){
         continue;
       }
-      if((strcmp(buf, curdir) == 0) || (strcmp(buf, updir) == 0)){
-          continue;
-      }
       unlink(buf);
     }
     break;
@@ -74,6 +71,12 @@ main(int argc, char* argv[])
     if(rv <0){
         printf("stop container %s failed\n", argv[1]);
     }
+    
+    char path[strlen(argv[1])+2];
+    strcpy(path, "/");
+    strcpy(&path[1],argv[1]);
+    strcpy(&path[strlen(argv[1])+1],"\0");
+    unlinkcontainerfiles(path);
     unlink(argv[1]);
     exit(0);
 }

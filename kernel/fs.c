@@ -77,6 +77,8 @@ bfree(int dev, uint b)
   if(myproc()!= 0){
     if(updatecontdsk(-BSIZE,myproc()->cont) < 0);
     //update the container
+  }else{
+    updatecontdsk(-BSIZE, cid2cont(ROOTCONT));
   }
   log_write(bp);
   brelse(bp);
@@ -107,6 +109,8 @@ balloc(uint dev)
             kcstop(myproc()->cont->name);
             return 0;
           }
+        }else{
+          updatecontdsk(BSIZE, cid2cont(ROOTCONT));
         }
         return b + bi;
       }
