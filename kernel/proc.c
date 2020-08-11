@@ -331,8 +331,8 @@ fork(struct container * c)
 
   if(updatecontproc(1, np->cont) < 0){
     printf("Too many process in container \n");
-    kcstop(np->cont->name);
-    exit(0);
+    climitexceedhandler(np->cont);
+    return pid;
   }
   
   return pid;

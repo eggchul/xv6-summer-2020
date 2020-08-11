@@ -95,12 +95,13 @@ setmaxdsk(char * contname, int newmax)
 		printf("Cannot set disk limit for root container\n");
 		exit(0);
 	}
-	printf("max dsk:%d, default max disk:%d\n", newmax, c->max_dsk);
-	if((uint64)(newmax*1024) - c->max_dsk>0){
+	
+	if((uint64)(newmax*1024) - c->max_dsk > 0){
 		printf("assign max disk exceed system limit, will use default size\n");
 		return -1;
-	}else{
-		c->max_dsk = newmax;
+	}else{	
+		printf("new max dsk: %d Kb, default max disk: %dKb\n", newmax, c->max_dsk/1024);
+		c->max_dsk = (uint64)(newmax*1024);
 	}
 	return 1;
 }
@@ -117,12 +118,13 @@ setmaxmem(char *contname, int newmax)
 		printf("Cannot set mem limit for root container\n");
 		exit(0);
 	}
-	printf("new max mem:%d, default max mem:%d\n", newmax,c->max_sz);
+	
 	if((uint64)(newmax*1024) - c->max_sz > 0){
 		printf("assign max mem exceed system limit, will use default size\n");
 		return -1;
-	}else{
-		c->max_sz = newmax;
+	}else{	
+		printf("new max mem: %d Kb, default max mem: %dKb\n", newmax, c->max_sz/1024);	
+		c->max_sz = (uint64)(newmax*1024);	
 	}
 	return 1;
 }
@@ -139,10 +141,11 @@ setmaxproc(char *contname, int numproc)
 		printf("Cannot set proc limit for root container\n");
 		exit(0);
 	}
-	if(numproc > c->max_proc){
-		printf("assign max disk exceed system limit, will use default size\n");
+	if(numproc > c->max_proc || numproc < 2){
+		printf("the assigned max proc does not fit the limit, will use default size\n");
 		return -1;
 	}else{
+		printf("new max proc: %d, default max proc: %d\n", numproc, c->max_proc);
 		c->max_proc = numproc;
 	}
 	return 1;
@@ -399,7 +402,8 @@ int kcstart(char* name, char* vcname, uint64 disksize)
 	}
 
 	updatecontdsk(disksize, c);
-	
+	updatecontmem(40*1024,c);
+	updatecontmem(-40*1024,cid2cont(ROOTCONT));
 	acquire(&c->lock);
 	strncpy(c->vc_name, vcname, 16);
 	c->state = CRUNNABLE;
