@@ -106,7 +106,7 @@ balloc(uint dev)
           if(updatecontdsk(BSIZE,myproc()->cont) < 0)
           { // need to do sth to handle over container disk size
             bfree(dev, b);
-            kcstop(myproc()->cont->name);
+            climitexceedhandler(myproc()->cont);
             return 0;
           }
         }else{

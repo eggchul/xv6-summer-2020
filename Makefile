@@ -152,6 +152,7 @@ UPROGS=\
 	$U/_membomb\
 	$U/_diskbomb\
 	$U/_schedtest\
+	# $U/_ticktest\
 
 fs.img: mkfs/mkfs README $(UPROGS)
 	mkfs/mkfs fs.img README $(UPROGS)
