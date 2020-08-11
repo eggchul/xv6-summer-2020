@@ -122,7 +122,7 @@ struct container {
   enum contstate state;		     // State of container
   int nextlocalpid;            // next local pid to assign  
   int cid;					           // Container ID
-  int nextproctorun;           // local id of next proc in container
+  struct proc* nextproctorun;  // next proc to run in container
   int used_proc;					     // Used processes
 	uint64 used_mem;       			 // Used pages of memory
 	uint64 used_dsk;					   // Used disk space (blocks)

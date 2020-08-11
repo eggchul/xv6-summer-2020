@@ -674,13 +674,21 @@ namex(char *path, int nameiparent, char *name)
       iunlockput(ip);
       return 0;
     }
-    iunlockput(ip);
 
-    // if the next dir is the root then we return the container's rootdir
-    if(!myproc()->cont->isroot && next->inum == rootip->inum){
-      return ip;
+    if(myproc()->cont->isroot){
+      iunlockput(ip);
+    }else{
+      iunlock(ip);
     }
-    ip = next;
+
+    // // if the next dir is the root then we return the container's rootdir
+    // if(!myproc()->cont->isroot && next->inum == rootip->inum){
+    //   return ip;
+    // }
+
+    if(myproc()->cont->isroot || next->inum != rootip->inum){
+      ip = next;
+    }
   }
   if(nameiparent){
     iput(ip);

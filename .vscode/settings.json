@@ -17,7 +17,10 @@
         "sstream": "cpp",
         "streambuf": "cpp",
         "locale": "cpp",
-        "file.h": "c"
+        "file.h": "c",
+        "__functional_base": "c",
+        "optional": "c",
+        "tuple": "c"
     },
     "C_Cpp.errorSquiggles": "Enabled"
 }

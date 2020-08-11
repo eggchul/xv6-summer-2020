@@ -158,6 +158,8 @@ updatecontmem(uint64 memchanged, struct container *c)
 	if(c->state == CUNUSED){
 		return 0;
 	}
+
+	// if(memchanged < 0){printf("container: %s\n", c->name);}
 	if(c->used_mem + memchanged > c->max_sz && !c->isroot){
 		printf("Container %s memory exceed\n", c->name);
 		return -1;
@@ -230,8 +232,9 @@ getnextconttosched(void)
 	struct container *c = &cont[0];
 	int holder = cont[0].ticks;
 	for(i = 1; i < NCONT; i++){
-		if(cont[i].ticks < holder && cont[i].state == CRUNNABLE){
+		if(cont[i].state == CRUNNABLE && cont[i].ticks < holder ){
 			c = &cont[i];
+			holder = c->ticks;
 		}
 	}
     // printf("Next container to sched: %s\n", c->name);
@@ -260,8 +263,6 @@ initrootcont()
 	struct container *c;
 	struct inode *rootdir;
 
-	// if ((c = alloccont()) == 0) 
-	// 	panic("Can't alloc init container.");
 	c = &cont[ROOTCONT];
 	printf("done initing root container\n");
 	if ((rootdir = namei("/")) == 0)
@@ -278,6 +279,7 @@ initrootcont()
 	c->rootdir = idup(rootdir);
     c->isroot = 1; // this is the root container
     c->nextlocalpid = 1;
+	c->nextproctorun = 0;
 	c->ticks = 0;
 	safestrcpy(c->name, "rootcont", sizeof(c->name));	
 	release(&c->lock);
@@ -295,6 +297,7 @@ cinit(void)
 		initlock(&cont[i].lock, "cont");
 		cont[i].cid = i;
 		cont[i].state = CUNUSED;
+		cont[i].ticks = 0;
 	}
 	initrootcont();
 	procinit();
@@ -319,11 +322,34 @@ kcfork(char* name)
 	}
 	return fork(c);
 }
+
+int
+setcontrootdir(char* name, char* path){
+	    
+	struct container *c = name2cont(name);
+	if(c == 0){
+		printf("container %s is not existed\n", name);
+		return -1;
+	}
+
+	struct inode *rootdir;
+	printf("connecting path\n");
+
+	if((rootdir = namei(path)) == 0){
+		printf("Cannot find path\n");
+		c->state = CUNUSED;
+		freecontainer(c);
+		return -1;
+	}
+
+	c->rootdir = rootdir;
+	return 1;
+}
+
 //contceate
 int
 kccreate(char *name){
 	struct container *c;
-	struct inode *rootdir;
     
 	if((name2cont(name)) != 0){
 		printf("Container %s is created already\n", name);
@@ -335,12 +361,6 @@ kccreate(char *name){
 		return -1;
 	}
 
-	if((rootdir = namei(name)) == 0){
-		printf("Cannot find path\n");
-		c->state = CUNUSED;
-		return -1;
-	}
-	
 	acquire(&c->lock);
 	c->max_proc = NPROC/NCONT;
 	c->max_sz = MAX_CMEM/NCONT;
@@ -348,14 +368,15 @@ kccreate(char *name){
 	c->used_dsk = 0;
 	c->used_mem = 0;
 	c->used_proc = 0;
-	c->rootdir = rootdir;
 	strncpy(c->name, name, 16);
 	c->state = CINITED;	
 	c->nextlocalpid = 1;
+	c->nextproctorun = 0;
 	c->isroot = 0;
+	c->ticks = 0;
 	release(&c->lock);	
 
-	return 1; 
+	return setcontrootdir(name, name);
 }
 
 //contstart take in container name and vc name
@@ -366,15 +387,19 @@ int kcstart(char* name, char* vcname, uint64 disksize)
 		return -1;
 	}
 	c = name2cont(name);
-	if(c->state != CINITED){
-		printf("No avaliable container named %s is found\n", name);
-		return -1;
-	}
+
 	if(c == 0){
 		printf("Error: kcstart, no container %s found\n", name);
 		return -1;
 	}
+
+	if(c->state != CINITED){
+		printf("No avaliable container named %s is found\n", name);
+		return -1;
+	}
+
 	updatecontdsk(disksize, c);
+	
 	acquire(&c->lock);
 	strncpy(c->vc_name, vcname, 16);
 	c->state = CRUNNABLE;
@@ -429,10 +454,11 @@ kcstop(char* name)
 		return -1;
 	}
 	printf("kernel: stoping container %s ...\n", c->name);
+	
 	acquire(&c->lock);
-	c->state = CSTOPPED;
 	containerkillall(c);
 	release(&c->lock);
+	c->state = CSTOPPED;
 	freecontainer(c);
 	resetticksforcontainers();
 	return 1;
@@ -455,6 +481,7 @@ freecontainer(struct container *c)
 	c->used_mem = 0;
 	c->used_proc = 0;
 	c->state = CUNUSED;	
+	c->ticks = 0;
 	release(&c->lock);
 	return 1;
 }

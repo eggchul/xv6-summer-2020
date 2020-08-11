@@ -59,6 +59,7 @@ main(int argc, char *argv[]){
         }
         //check if over disk size
     }
+    
     if((ccreate(argv[1])) == 1){
         printf("container %s is created\n",argv[1]);
     }else {
