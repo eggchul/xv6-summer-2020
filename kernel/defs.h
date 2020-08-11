@@ -125,7 +125,6 @@ void            resumeprocforcontainer(struct container *);
 void            pauseprocforcontainer(struct container *);
 int             usedprocforcontainer(struct container *);
 uint64          usedmemforcontainer(struct container *);
-struct proc*    getnextprocforcontainer(struct container*);
 
 // container.c
 void            cinit(void);

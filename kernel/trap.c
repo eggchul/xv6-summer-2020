@@ -168,6 +168,7 @@ clockintr()
   release(&tickslock);
   // if(myproc()!=0){
   //   myproc()->cont->ticks ++;
+  //   myproc()->ticks ++;
   // }
 }
 

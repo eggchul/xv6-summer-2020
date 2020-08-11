@@ -144,13 +144,6 @@ found:
   return p;
 }
 
-struct proc*
-getnextprocforcontainer(struct container *c){
-  struct proc* p;
-  p = &proc[c->nextproctorun];
-  //iterate the proc[] and find runnable next proc
-  return p;
-}
 
 // free a proc structure and the data hanging from it,
 // including user pages.
@@ -176,6 +169,7 @@ freeproc(struct proc *p)
     updatecontproc(-1,p->cont);
   }
   p->cont = 0;
+  p->tracing = 0;
 }
 
 // Create a page table for a given process,
@@ -334,14 +328,13 @@ fork(struct container * c)
   np->state = RUNNABLE;
   release(&np->lock);
 
-  if(pid > 0){
-    if(updatecontproc(1, np->cont) < 0){
-      printf("Too many process in container \n");
-      kcstop(np->cont->name);
-      exit(0);
-    }
-  }
 
+  if(updatecontproc(1, np->cont) < 0){
+    printf("Too many process in container \n");
+    kcstop(np->cont->name);
+    exit(0);
+  }
+  
   return pid;
 }
 
@@ -491,6 +484,46 @@ wait(uint64 addr)
   }
 }
 
+struct proc *
+getnextproc(struct container *c){
+  struct proc *p;
+  struct proc *curproc = c->nextproctorun;
+
+  // look for valid proc of container for next
+  if(curproc == 0){
+    for(p = proc; p < &proc[NPROC]; p ++){
+      if(p->cont == c){
+          // if(!c->isroot){ printf("p: %s, c: %s\n", p->name, c->name);}
+        return c->nextproctorun = p;
+      }
+    }
+  }
+
+  int index = 0;
+  for(p = proc; p < &proc[NPROC]; p ++){
+    if(p == curproc){
+      index ++;
+      goto loopfornext;
+    }
+    index ++;
+  }
+
+  loopfornext:
+    for(;;){
+      p = &proc[index%NPROC];
+      acquire(&p->lock);
+      if(p->cont == c){
+        c->nextproctorun = p;
+        release(&p->lock);
+        // if(!c->isroot){ printf("next p: %s, c: %s\n", p->name, c->name);}
+        return p;
+      }
+      release(&p->lock);
+      index ++;
+    }
+}
+
+
 // Per-CPU process scheduler.
 // Each CPU calls scheduler() after setting itself up.
 // Scheduler never returns.  It loops, doing:
@@ -503,15 +536,53 @@ scheduler(void)
 {
   struct proc *p;
   struct cpu *c = mycpu();
+
+  int start;
   
   c->proc = 0;
   for(;;){
     // Avoid deadlock by ensuring that devices can interrupt.
     intr_on();
 
-    for(p = proc; p < &proc[NPROC]; p++) {
+    // for(p = proc; p < &proc[NPROC]; p++) {
+    //   acquire(&p->lock);
+    //   if(p->state == RUNNABLE) {
+
+    //     start = ticks;
+    //     // Switch to chosen process.  It is the process's job
+    //     // to release its lock and then reacquire it
+    //     // before jumping back to us.
+    //     p->state = RUNNING;
+    //     c->proc = p;
+    //     swtch(&c->scheduler, &p->context);
+
+    //     // Process is done running for now.
+    //     // It should have changed its p->state before coming back.
+    //     p->ticks += (ticks - start);
+    //     c->proc = 0;
+    //     p->cont->ticks += (ticks - start);
+
+    //   }
+    //   release(&p->lock);
+    // }
+
+    struct container *cont;
+    // cont = getnextconttosched();
+    int i;
+    for(i = 0; i < NCONT; i ++){
+
+      cont = cid2cont(i);
+      if(cont == 0 || cont->state != CRUNNABLE)
+        continue;
+
+      p = cont->nextproctorun;
+      if(p == 0){
+        getnextproc(cont);
+        continue;
+      }
       acquire(&p->lock);
-      if(p->state == RUNNABLE) {
+      if(p->state == RUNNABLE){
+        start = ticks;
         // Switch to chosen process.  It is the process's job
         // to release its lock and then reacquire it
         // before jumping back to us.
@@ -521,9 +592,13 @@ scheduler(void)
 
         // Process is done running for now.
         // It should have changed its p->state before coming back.
+
         c->proc = 0;
+        p->ticks += (ticks - start);
+        cont->ticks += (ticks - start);
       }
       release(&p->lock);
+      getnextproc(cont);
     }
   }
 }
@@ -780,7 +855,7 @@ kpinfo(uint64 info_p)
   for(p = proc; p < &proc[NPROC]; p++) {
     if(isroot){
       acquire(&p->lock);
-      if(p->state != UNUSED) {
+      if(p->state != UNUSED && p->cont->state != CUNUSED && p->cont->state != CSTOPPED) {
         pd_array[count].pid = p->pid;
         strncpy(pd_array[count].name, p->name, 16);
         pd_array[count].mem = p->sz;
@@ -977,11 +1052,30 @@ containerkillall(struct container *c)
         // Wake process from sleep().
         p->state = RUNNABLE;
       }
+      freeproc(p);
       release(&p->lock);
     }
   }
   return -1;
 }
+
+void 
+stopprocforcontainer(struct container* c)
+{
+  struct proc *p;
+  for(p = proc; p < &proc[NPROC]; p++){
+    acquire(&p->lock);
+    if(p->cont == c){
+      p->killed = 1;
+      if(p->state == SLEEPING || p->state == SUSPENDED){
+        // Wake process from sleep().
+        p->state = RUNNABLE;
+      }
+    }
+    release(&p->lock);
+  }
+}
+
 
 int
 totalusedproc(void)// count the number of process
@@ -1083,19 +1177,4 @@ resumeprocforcontainer(struct container *c)
   printf("resume processes ok\n");
 }
 
-void 
-stopprocforcontainer(struct container* c)
-{
-  struct proc *p;
-  for(p = proc; p < &proc[NPROC]; p++){
-    acquire(&p->lock);
-    if(p->cont == c){
-      p->killed = 1;
-      if(p->state == SLEEPING || p->state == SUSPENDED){
-        // Wake process from sleep().
-        p->state = RUNNABLE;
-      }
-    }
-    release(&p->lock);
-  }
-}
+

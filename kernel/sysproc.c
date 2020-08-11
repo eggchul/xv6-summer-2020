@@ -213,6 +213,5 @@ sys_setmaxcproc(void)
 
 uint64
 sys_getticks(void){
-  // return myproc()->ticks;
-  return 0;
+  return myproc()->ticks;
 }

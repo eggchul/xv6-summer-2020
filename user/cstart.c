@@ -136,6 +136,9 @@ main(int argc, char *argv[]){
   strcpy(&path[strlen(argv[2])+1],"\0");
 
   int disksize = containerinitdisk(path);
+  if(disksize < 0){
+    exit(0);
+  }
   // printf("cont dir size: %d\n",disksize);
 
   if(argc > 4 && argv[4]){
@@ -164,9 +167,18 @@ main(int argc, char *argv[]){
     }
   }
 
+  int cstart_rv = 0;
+  cstart_rv = cstart(argv[2], argv[1], disksize);
+
+  if(cstart_rv < 0){
+      printf("start container failed\n");
+      exit(0);
+  }else{
+      printf("container started\n");
+  }
+
   /* fork a child and exec argv[2] */
   int id = cfork(argv[2]);
-  int cstart_rv = 0;
   if (id == 0){
       close(0);
       close(1);
@@ -174,13 +186,6 @@ main(int argc, char *argv[]){
       dup(vcfd);
       dup(vcfd);
       dup(vcfd);
-      cstart_rv = cstart(argv[2], argv[1], disksize);
-      if(cstart_rv < 0){
-          printf("start container failed\n");
-          exit(0);
-      }else{
-          printf("container started\n");
-      }
 
       exec(argv[3], &argv[3]);
 
@@ -192,5 +197,6 @@ main(int argc, char *argv[]){
       unlink(argv[2]);
       exit(0);
   }
+
   exit(0);
 }
