@@ -151,7 +151,7 @@ UPROGS=\
 	$U/_forkbomb\
 	$U/_membomb\
 	$U/_diskbomb\
-	$U/_shedtest\
+	$U/_schedtest\
 
 fs.img: mkfs/mkfs README $(UPROGS)
 	mkfs/mkfs fs.img README $(UPROGS)
