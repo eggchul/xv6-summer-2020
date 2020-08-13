@@ -484,6 +484,22 @@ wait(uint64 addr)
   }
 }
 
+int strcmp(char string1[], char string2[] )
+{
+    for (int i = 0; ; i++)
+    {
+        if (string1[i] != string2[i])
+        {
+            return string1[i] < string2[i] ? -1 : 1;
+        }
+
+        if (string1[i] == '\0')
+        {
+            return 0;
+        }
+    }
+}
+
 struct proc *
 getnextproc(struct container *c){
   struct proc *p;
@@ -494,6 +510,9 @@ getnextproc(struct container *c){
     for(p = proc; p < &proc[NPROC]; p ++){
       if(p->cont == c){
           // if(!c->isroot){ printf("p: %s, c: %s\n", p->name, c->name);}
+      // if((strcmp(c->name, "c1") == 0) && strcmp(p->name, "sh") && (c->ticks != 0)) {
+      //   printf("c1 with sh was found!!\n");
+      // }
         return c->nextproctorun = p;
       }
     }
@@ -516,13 +535,15 @@ getnextproc(struct container *c){
         c->nextproctorun = p;
         release(&p->lock);
         // if(!c->isroot){ printf("next p: %s, c: %s\n", p->name, c->name);}
+      // if((strcmp(c->name, "c1") == 0) && strcmp(p->name, "sh") && (c->ticks != 0)) {
+      //   printf("c1 with sh was found!!\n");
+      // }
         return p;
       }
       release(&p->lock);
       index ++;
     }
 }
-
 
 // Per-CPU process scheduler.
 // Each CPU calls scheduler() after setting itself up.
