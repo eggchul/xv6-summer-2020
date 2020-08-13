@@ -14,4 +14,4 @@
 #define NCONT         8  // maximum number of containers
 #define ROOTCONT      0  // root container cid is 0
 #define MAX_CDISK    NPROC*40*1024        // bytes
-#define MAX_CMEM     NPROC*10*4096        // bytes
+#define MAX_CMEM     NPROC*100*4096        // bytes
